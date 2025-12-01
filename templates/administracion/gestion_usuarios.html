@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block title %}Control de Usuarios{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+        <h1 class="h2" style="color: #333333;">
+            <i class="bi bi-people me-2"></i> Control de Usuarios (RBAC)
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <!-- CORRECCIÓN 1: Usar 'crear_usuario' sin namespace -->
+            <a href="{% url 'crear_usuario' %}" class="btn btn-sm btn-danger me-2">
+                <i class="bi bi-person-plus"></i> Crear Nuevo Usuario
+            </a>
+        </div>
+    </div>
+
+    <!-- Mensajes -->
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- Tabla de Usuarios -->
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th scope="col" class="ps-4">Email / Nombre</th>
+                        <th scope="col">Rol Actual</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col" class="text-end pe-4">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user_target in users %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="fw-bold">{{ user_target.email }}</div>
+                            <div class="small text-muted">{{ user_target.get_full_name|default:"Sin Nombre" }}</div>
+                        </td>
+
+                        <!-- Rol actual -->
+                        <td>
+                            {% if user_target.rol == 'ADMIN' %}
+                            <span class="badge bg-danger">ADMINISTRADOR</span>
+                            {% elif user_target.rol == 'COORDINADOR' %}
+                            <span class="badge bg-info text-dark">COORDINADOR</span>
+                            {% else %}
+                            <span class="badge bg-secondary">MANTENIMIENTO</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Estado -->
+                        <td>
+                            {% if user_target.is_active %}
+                            <span class="badge bg-success">Habilitado</span>
+                            {% else %}
+                            <span class="badge bg-dark">BLOQUEADO</span>
+                            {% endif %}
+                        </td>
+
+                        <td class="text-end pe-4">
+
+                            <!-- Cambio de Rol -->
+                            <div class="dropdown d-inline-block me-2">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                    data-bs-toggle="dropdown">
+                                    Cambiar Rol
+                                </button>
+                                <ul class="dropdown-menu">
+                                    {% for rol_key, rol_name in user_target.ROLES %}
+                                    {% if rol_key != user_target.rol %}
+                                    <li>
+                                        <!-- CORRECCIÓN 2: Usar 'gestionar_rol_estado' en lugar de 'editar_rol' -->
+                                        <form method="post"
+                                            action="{% url 'gestionar_rol_estado' user_target.id %}"
+                                            class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="rol">
+                                            <input type="hidden" name="value" value="{{ rol_key }}">
+                                            <button type="submit" class="dropdown-item">Asignar {{ rol_name }}</button>
+                                        </form>
+                                    </li>
+                                    {% endif %}
+                                    {% endfor %}
+                                </ul>
+                            </div>
+
+                            <!-- Bloquear / Habilitar -->
+                            <!-- CORRECCIÓN 3: Usar 'gestionar_rol_estado' -->
+                            <form method="post" action="{% url 'gestionar_rol_estado' user_target.id %}"
+                                class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="toggle_active">
+
+                                {% if user_target.is_active %}
+                                <button type="submit" class="btn btn-sm btn-warning" title="Bloquear Acceso">
+                                    <i class="bi bi-lock"></i> Bloquear
+                                </button>
+                                {% else %}
+                                <button type="submit" class="btn btn-sm btn-success" title="Habilitar Acceso">
+                                    <i class="bi bi-unlock"></i> Habilitar
+                                </button>
+                                {% endif %}
+                            </form>
+
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

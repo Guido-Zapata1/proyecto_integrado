@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Iniciar Sesión - INACAP Reservas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        :root{--inacap-red:#D71920;--inacap-text:#333333;--inacap-bg:#F4F6F9}
+        body{background:var(--inacap-bg);color:var(--inacap-text)}
+        .login-hero{min-height:100vh;display:flex;align-items:center}
+        .login-card{border-top:4px solid var(--inacap-red);border-radius:.6rem}
+    </style>
+</head>
+<body>
+    <div class="container login-hero">
+        <div class="row justify-content-center w-100">
+            <div class="col-sm-10 col-md-6 col-lg-4">
+                <div class="card shadow-sm login-card">
+                    <div class="card-body p-4">
+                        <div class="text-center mb-3">
+                            <h4 class="mb-1"><i class="bi bi-person-circle text-danger me-1"></i> Iniciar Sesión</h4>
+                            <p class="small text-muted mb-0">Ingresa con tu cuenta institucional</p>
+                        </div>
+
+                        <form method="post" action="{% url 'login' %}" class="mt-3">
+                            {% csrf_token %}
+                            {% if form.errors %}
+                                <div class="alert alert-danger py-2 small" role="alert">
+                                    {% for field, errors in form.errors.items %}
+                                        {% for error in errors %}{{ error }}{% if not forloop.last %}<br>{% endif %}{% endfor %}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
+                            <div class="mb-3">
+                                <label class="form-label small text-muted">Correo o Usuario</label>
+                                <input type="text" name="username" class="form-control form-control-lg" autofocus required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small text-muted">Contraseña</label>
+                                <input type="password" name="password" class="form-control form-control-lg" required>
+                            </div>
+
+                            {% if next %}
+                                <input type="hidden" name="next" value="{{ next }}">
+                            {% elif request.GET.next %}
+                                <input type="hidden" name="next" value="{{ request.GET.next }}">
+                            {% endif %}
+
+                            <div class="d-grid mb-2">
+                                <button type="submit" class="btn btn-danger btn-lg"><i class="bi bi-box-arrow-in-right me-2"></i> Ingresar</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="card-footer text-center small bg-white text-muted">Sistema de Reservas INACAP — Acceso seguro</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

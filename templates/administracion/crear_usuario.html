@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}Crear Usuario{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0 rounded">
+                <div class="card-header bg-danger text-white text-center fw-bold">
+                    Crear Nuevo Usuario
+                </div>
+                <div class="card-body">
+
+                    <!-- Errores Generales -->
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <form method="POST">
+                        {% csrf_token %}
+
+                        <!-- SECCIÓN 1: DATOS PERSONALES -->
+                        <h6 class="text-muted border-bottom pb-2 mb-3">Datos Personales</h6>
+                        
+                        <!-- CORREO ELECTRÓNICO -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-secondary small">Correo Electrónico</label>
+                            <!-- Input HTML estándar: Esto asegura que la caja aparezca -->
+                            <input type="email" name="email" class="form-control" placeholder="ejemplo@inacap.cl" required 
+                                   value="{{ form.email.value|default:'' }}">
+                            <!-- Mensajes de error -->
+                            {% if form.email.errors %}
+                                <div class="text-danger small mt-1">{{ form.email.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="row">
+                            <!-- NOMBRES -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold text-secondary small">Nombres</label>
+                                <input type="text" name="first_name" class="form-control" placeholder="Nombres"
+                                       value="{{ form.first_name.value|default:'' }}">
+                            </div>
+                            <!-- APELLIDOS -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold text-secondary small">Apellidos</label>
+                                <input type="text" name="last_name" class="form-control" placeholder="Apellidos"
+                                       value="{{ form.last_name.value|default:'' }}">
+                            </div>
+                        </div>
+
+                        <!-- ROL (SELECTOR) -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-secondary small">Rol en el Sistema</label>
+                            <select name="rol" class="form-select">
+                                <option value="MANTENIMIENTO" {% if form.rol.value == 'MANTENIMIENTO' %}selected{% endif %}>Mantenimiento (Solo ver)</option>
+                                <option value="COORDINADOR" {% if form.rol.value == 'COORDINADOR' %}selected{% endif %}>Coordinador</option>
+                                <option value="ADMIN" {% if form.rol.value == 'ADMIN' %}selected{% endif %}>Administrador</option>
+                            </select>
+                            <div class="form-text small">El rol determina los permisos de acceso.</div>
+                        </div>
+
+                        <!-- SECCIÓN 2: SEGURIDAD -->
+                        <h6 class="text-muted border-bottom pb-2 mb-3 mt-4">Seguridad</h6>
+
+                        <!-- CONTRASEÑA -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-secondary small">Contraseña</label>
+                            <input type="password" name="password" class="form-control" placeholder="Ingrese contraseña" required>
+                            {% if form.password.errors %}
+                                <div class="text-danger small mt-1">{{ form.password.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- CONFIRMAR CONTRASEÑA -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-secondary small">Confirmar Contraseña</label>
+                            <input type="password" name="confirm_password" class="form-control" placeholder="Repita la contraseña" required>
+                            {% if form.confirm_password.errors %}
+                                <div class="text-danger small mt-1">{{ form.confirm_password.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- BOTONES DE ACCIÓN -->
+                        <div class="text-center mt-4">
+                            <button type="submit" class="btn btn-danger px-4">Crear Usuario</button>
+                            <a href="{% url 'gestion_usuarios' %}" class="btn btn-secondary px-4">Cancelar</a>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

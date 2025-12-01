@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestión de Espacios{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-building me-2"></i>Gestión de Espacios</h2>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        <!-- COLUMNA IZQUIERDA: Formulario -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm border-0 sticky-top" style="top: 20px; z-index: 1;">
+                <div class="card-header bg-danger text-white fw-bold">
+                    <i class="bi bi-plus-circle me-1"></i> Nuevo Espacio
+                </div>
+                <div class="card-body">
+                    <!-- CORRECCIÓN CRÍTICA: enctype="multipart/form-data" es OBLIGATORIO para subir archivos -->
+                    <form method="POST" id="createSpaceForm" enctype="multipart/form-data" onsubmit="return validateForm()">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label small text-secondary fw-bold">Nombre</label>
+                            <input type="text" name="nombre" id="inputNombre" class="form-control" required placeholder="Ej: Laboratorio 1">
+                            <div id="errorNombre" class="text-danger small mt-1" style="display:none;"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small text-secondary fw-bold">Ubicación</label>
+                            <input type="text" name="ubicacion" class="form-control" required placeholder="Ej: Edificio A, Piso 2">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small text-secondary fw-bold">Capacidad</label>
+                            <input type="number" name="capacidad" class="form-control" required min="1" placeholder="Ej: 30">
+                        </div>
+                        
+                        <!-- INPUT DE IMAGEN -->
+                        <div class="mb-3">
+                            <label class="form-label small text-secondary fw-bold">Fotografía (Opcional)</label>
+                            <input type="file" name="imagen" class="form-control" accept="image/*">
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-danger">Guardar Espacio</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMNA DERECHA: Listado -->
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-bold text-secondary"><i class="bi bi-list-ul me-1"></i> Espacios</span>
+                        <div class="input-group input-group-sm" style="width: 250px;">
+                            <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                            <input type="text" id="searchSpace" class="form-control border-start-0 bg-light" placeholder="Buscar...">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" id="espaciosTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Imagen</th> <!-- Nueva Columna -->
+                                    <th class="cursor-pointer" onclick="sortTable(1)">Nombre</th>
+                                    <th>Ubicación</th>
+                                    <th class="text-center">Cap.</th>
+                                    <th class="text-center">Estado</th>
+                                    <th class="text-end pe-3">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="spaceTableBody">
+                                {% for espacio in espacios %}
+                                <tr>
+                                    <td class="ps-3">
+                                        {% if espacio.imagen %}
+                                            <img src="{{ espacio.imagen.url }}" alt="Foto" class="rounded border" width="50" height="50" style="object-fit: cover;">
+                                        {% else %}
+                                            <div class="bg-light rounded border d-flex align-items-center justify-content-center text-muted" style="width: 50px; height: 50px;">
+                                                <i class="bi bi-image"></i>
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="fw-bold text-dark space-name">{{ espacio.nombre }}</td>
+                                    <td>{{ espacio.ubicacion }}</td>
+                                    <td class="text-center"><span class="badge bg-light text-dark border">{{ espacio.capacidad }}</span></td>
+                                    <td class="text-center">
+                                        {% if espacio.activo %}
+                                            <span class="badge bg-success">Activo</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Inactivo</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        <a href="{% url 'editar_espacio' espacio.id %}" class="btn btn-sm btn-outline-primary border-0 me-1"><i class="bi bi-pencil"></i></a>
+                                        <a href="{% url 'eliminar_espacio' espacio.id %}" class="btn btn-sm btn-outline-danger border-0" onclick="return confirm('¿Eliminar {{ espacio.nombre }}?');"><i class="bi bi-trash"></i></a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr class="no-results"><td colspan="6" class="text-center text-muted py-5">No hay espacios registrados.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function validateForm() {
+        const inputNombre = document.getElementById('inputNombre');
+        const errorDiv = document.getElementById('errorNombre');
+        const nombreNuevo = inputNombre.value.trim().toUpperCase();
+        const nombresExistentes = document.querySelectorAll('.space-name');
+        let existe = false;
+        nombresExistentes.forEach(td => { if (td.innerText.trim().toUpperCase() === nombreNuevo) existe = true; });
+        if (existe) {
+            errorDiv.innerText = "Error: Este espacio ya existe.";
+            errorDiv.style.display = 'block';
+            inputNombre.classList.add('is-invalid');
+            return false;
+        }
+        errorDiv.style.display = 'none';
+        inputNombre.classList.remove('is-invalid');
+        return true;
+    }
+    
+    // Filtro de búsqueda
+    document.getElementById('searchSpace').addEventListener('keyup', function() {
+        let filter = this.value.toLowerCase();
+        let rows = document.querySelectorAll('#spaceTableBody tr:not(.no-results)');
+        rows.forEach(row => {
+            if (row.innerText.toLowerCase().includes(filter)) row.style.display = '';
+            else row.style.display = 'none';
+        });
+    });
+
+    // Ordenamiento simple
+    function sortTable(n) {
+        var table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
+        table = document.getElementById("espaciosTable");
+        switching = true;
+        dir = "asc"; 
+        while (switching) {
+            switching = false;
+            rows = table.rows;
+            for (i = 1; i < (rows.length - 1); i++) {
+                shouldSwitch = false;
+                x = rows[i].getElementsByTagName("TD")[n];
+                y = rows[i + 1].getElementsByTagName("TD")[n];
+                if (dir == "asc") {
+                    if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                } else if (dir == "desc") {
+                    if (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                }
+            }
+            if (shouldSwitch) {
+                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                switching = true;
+                switchcount ++;      
+            } else {
+                if (switchcount == 0 && dir == "asc") {
+                    dir = "desc";
+                    switching = true;
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}

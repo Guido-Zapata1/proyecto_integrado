@@ -1,0 +1,10 @@
+Django>=4.2
+psycopg2-binary  # Driver PostgreSQL
+djangorestframework # Para la API
+django-cors-headers
+celery  # Tareas asíncronas
+redis   # Broker para Celery
+python-decouple # Para variables de entorno (.env)
+Pillow  # Para manejo de imágenes
+weasyprint # Para reportes PDF
+openpyxl # Para reportes Excel 

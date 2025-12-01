@@ -1,0 +1,354 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Nueva Reserva{% endblock %}
+
+{% block extra_css %}
+<!-- FullCalendar CSS -->
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css' rel='stylesheet' />
+{% endblock %}
+
+{% block content %}
+<!-- ESTILOS ESPECÍFICOS PARA EL BLINDAJE DE IMÁGENES -->
+<style>
+    /* Tarjeta del Espacio */
+    .space-card {
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid #dee2e6;
+        border-radius: 12px;
+        background-color: #fff;
+        position: relative;
+        overflow: hidden; /* CRÍTICO: Corta cualquier cosa que intente salirse */
+        padding: 15px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .space-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        border-color: #adb5bd;
+    }
+
+    .space-card.selected {
+        border: 2px solid #D71920; /* Borde rojo al seleccionar */
+        background-color: #fff5f5;
+    }
+
+    /* CONTENEDOR DE IMAGEN (Cuadrado Redondeado) */
+    .space-img-container {
+        width: 100px !important;  /* Un poco más grande para el formato cuadrado */
+        height: 100px !important; 
+        min-width: 100px !important;
+        min-height: 100px !important;
+        
+        margin: 10px auto; /* Separación vertical */
+        
+        border-radius: 12px; /* CAMBIO: Cuadrado con bordes suaves en lugar de círculo (50%) */
+        border: 1px solid #dee2e6; /* Borde sutil */
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        
+        overflow: hidden; /* Recorta la imagen para respetar los bordes redondeados */
+        background-color: #f8f9fa;
+        
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* LA IMAGEN EN SÍ */
+    .space-img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important; /* Escala la foto para llenar el cuadrado sin deformarse */
+        display: block;
+    }
+
+    /* Check de selección */
+    .check-icon {
+        display: none;
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        color: #198754;
+        background: white;
+        border-radius: 50%;
+        z-index: 5;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .space-card.selected .check-icon {
+        display: block !important;
+    }
+
+    /* Otros estilos utilitarios */
+    .visually-hidden-select {
+        position: absolute;
+        width: 1px; height: 1px;
+        padding: 0; margin: -1px;
+        overflow: hidden; clip: rect(0,0,0,0);
+        border: 0;
+    }
+    #calendar { max-height: 500px; }
+    .stock-control {
+        background: #fff;
+        border: 1px dashed #ced4da;
+        padding: 15px;
+        border-radius: 8px;
+    }
+</style>
+
+<div class="container py-4">
+    
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-0 text-dark">Nueva Solicitud</h2>
+            <p class="text-muted mb-0">Complete el formulario para reservar un espacio.</p>
+        </div>
+        <a href="{% url 'home' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
+
+    <!-- Mensajes -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        <!-- COLUMNA IZQUIERDA: Formulario -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <form method="post" id="reservaForm" enctype="multipart/form-data" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- 1. SELECCIÓN DE ESPACIO (Rejilla de Iconos) -->
+                        <h5 class="text-primary mb-3"><i class="bi bi-grid-fill me-2"></i>Seleccione un Espacio</h5>
+                        
+                        <div class="row g-3 mb-4">
+                            {% for espacio in espacios %}
+                            <div class="col-6 col-md-3"> <!-- 4 por fila en escritorio, 2 en móvil -->
+                                <div class="space-card shadow-sm" onclick="selectSpace('{{ espacio.id }}', this)">
+                                    
+                                    <!-- Icono Check -->
+                                    <div class="check-icon">
+                                        <i class="bi bi-check-circle-fill fs-5"></i>
+                                    </div>
+
+                                    <!-- 1. Nombre Arriba (Texto pequeño y en negrita) -->
+                                    <div class="fw-bold text-dark text-uppercase text-center text-truncate w-100 small mb-2" title="{{ espacio.nombre }}">
+                                        {{ espacio.nombre }}
+                                    </div>
+
+                                    <!-- 2. Imagen Cuadrada (Thumbnail) -->
+                                    <div class="space-img-container">
+                                        {% if espacio.imagen %}
+                                            <img src="{{ espacio.imagen.url }}" class="space-img" alt="Foto">
+                                        {% else %}
+                                            <i class="bi bi-building text-secondary opacity-50 fs-1"></i>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- 3. Capacidad Abajo -->
+                                    <div class="text-muted text-center mt-1" style="font-size: 0.75rem;">
+                                        <i class="bi bi-people-fill me-1"></i>Cap: {{ espacio.capacidad }}
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="col-12 text-center text-muted py-4 bg-light rounded">
+                                <i class="bi bi-info-circle me-2"></i>No hay espacios disponibles activos.
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Select Oculto -->
+                        <div class="mb-3 position-relative">
+                            {{ form.espacio }} 
+                            <div id="availability-status" class="form-text mt-1"></div>
+                            {% if form.espacio.errors %}
+                                <div class="alert alert-danger py-1 small text-center mt-2">{{ form.espacio.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 2. Detalles de Fecha y Hora -->
+                        <h5 class="text-primary mb-3 pt-2 border-top"><i class="bi bi-clock-history me-2"></i>Horario</h5>
+                        
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small text-muted">Fecha</label>
+                                {{ form.fecha }}
+                                <div id="date-error" class="text-danger small d-none mt-1">
+                                    <i class="bi bi-exclamation-circle"></i> Mínimo 24 hrs antes.
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small text-muted">Hora Inicio</label>
+                                {{ form.hora_inicio }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small text-muted">Hora Fin</label>
+                                {{ form.hora_fin }}
+                            </div>
+                        </div>
+                        <div id="time-error" class="alert alert-danger py-2 d-none small"></div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-muted">Motivo</label>
+                            {{ form.motivo }}
+                        </div>
+
+                        <!-- 3. Documentos -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold small text-muted">Documento Adjunto (Opcional)</label>
+                            {{ form.archivo_adjunto }}
+                            <div class="form-text small text-muted">
+                                <i class="bi bi-file-earmark-pdf"></i> PDF o Excel. Máximo 5MB.
+                            </div>
+                            {% if form.archivo_adjunto.errors %}
+                                <div class="text-danger small">{{ form.archivo_adjunto.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 4. Recursos -->
+                        <h5 class="text-primary mb-3 border-top pt-3"><i class="bi bi-box-seam-fill me-2"></i>Recursos Adicionales</h5>
+                        
+                        <div class="stock-control mb-3">
+                            <div class="alert alert-warning py-2 d-none" id="stock-alert"></div>
+                            
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted">Recurso</label>
+                                    <select class="form-select" id="recurso_selector">
+                                        <option value="" selected>-- Seleccionar --</option>
+                                        {% for r in recursos %}
+                                            <option value="{{ r.id }}" data-stock="{{ r.stock }}">
+                                                {{ r.nombre }} (Disp: {{ r.stock }})
+                                            </option>
+                                        {% empty %}
+                                            <option disabled>Sin inventario</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small text-muted">Cantidad</label>
+                                    <input type="number" class="form-control" id="recurso_cantidad" min="1" placeholder="0">
+                                </div>
+                                <div class="col-md-3">
+                                    <button type="button" class="btn btn-success w-100" id="btnAgregarRecurso">
+                                        <i class="bi bi-plus-lg"></i> Agregar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive mt-3">
+                                <table class="table table-sm table-hover border" id="tabla_recursos">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Item</th>
+                                            <th class="text-center">Cant.</th>
+                                            <th class="text-end">Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                            <input type="hidden" name="recursos_seleccionados" id="recursos_input">
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg shadow-sm" id="submitBtn">
+                                Confirmar Solicitud
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMNA DERECHA -->
+        <div class="col-lg-4">
+            
+            <!-- Calendario Box -->
+            <div class="card shadow-sm border-0 mb-4 bg-dark text-white">
+                <div class="card-body text-center">
+                    <h5 class="card-title"><i class="bi bi-calendar3"></i> Disponibilidad</h5>
+                    <p class="small opacity-75">Revise los horarios antes de reservar.</p>
+                    <button type="button" class="btn btn-light w-100 fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#calendarModal">
+                        Ver Calendario
+                    </button>
+                </div>
+            </div>
+
+            <!-- Reglas Box -->
+            <div class="card shadow-sm border-0 rules-box sticky-top" style="top: 20px;">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-shield-check me-2"></i>Políticas</h6>
+                    <ul class="list-unstyled rules-list ps-1">
+                        <li><i class="bi bi-clock text-primary me-2"></i>Anticipación mínima: 24 horas.</li>
+                        <li><i class="bi bi-hourglass-split text-primary me-2"></i>Máximo 4 horas por bloque.</li>
+                        <li><i class="bi bi-people-fill text-primary me-2"></i>Entregue el espacio limpio.</li>
+                    </ul>
+                    <div class="alert alert-light border mt-3 mb-0 small text-muted">
+                        <i class="bi bi-info-circle me-1"></i> El incumplimiento de normas conlleva sanciones.
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Modal Calendario -->
+<div class="modal fade" id="calendarModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title">Disponibilidad de Espacios</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="calendar"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+<script src="{% static 'js/crear_reserva.js' %}"></script>
+
+<script>
+    // Lógica para Selección Visual de Espacios
+    function selectSpace(id, cardElement) {
+        // 1. Actualizar el select oculto de Django
+        const select = document.getElementById('id_espacio'); 
+        if(select) {
+            select.value = id;
+            select.dispatchEvent(new Event('change'));
+        }
+
+        // 2. Actualizar visualmente las tarjetas
+        document.querySelectorAll('.space-card').forEach(c => c.classList.remove('selected'));
+        cardElement.classList.add('selected');
+    }
+
+    // Ocultar el select original al cargar
+    document.addEventListener("DOMContentLoaded", function() {
+        const select = document.getElementById('id_espacio');
+        if(select) select.classList.add('visually-hidden-select');
+    });
+</script>
+{% endblock %}

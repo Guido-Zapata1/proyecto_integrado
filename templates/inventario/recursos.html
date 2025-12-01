@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestión de Recursos{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-box-seam me-2"></i>Gestión de Recursos</h2>
+    </div>
+
+    <!-- Mensajes de éxito/error -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        <!-- COLUMNA IZQUIERDA: Formulario de Creación -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm border-0 sticky-top" style="top: 20px; z-index: 1;">
+                <div class="card-header bg-danger text-white fw-bold">
+                    <i class="bi bi-plus-circle me-1"></i> Nuevo Recurso
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="createRecursoForm" onsubmit="return validateForm()">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label small text-secondary fw-bold">Nombre</label>
+                            <input type="text" name="nombre" id="inputNombre" class="form-control" required 
+                                   placeholder="Ej: Proyector HDMI"
+                                   pattern="[a-zA-Z0-9\s]+" 
+                                   title="Solo letras y números.">
+                            <div id="errorNombre" class="text-danger small mt-1" style="display:none;"></div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label small text-secondary fw-bold">Stock Inicial</label>
+                            <input type="number" name="cantidad" class="form-control" required min="0" placeholder="Ej: 10">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label small text-secondary fw-bold">Descripción</label>
+                            <textarea name="descripcion" class="form-control" rows="2" 
+                                      placeholder="Detalles del recurso..."
+                                      pattern="[a-zA-Z0-9\s]+" 
+                                      title="Solo se permiten letras y números."></textarea>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-danger">Guardar Recurso</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMNA DERECHA: Tabla de Listado -->
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="fw-bold text-secondary"><i class="bi bi-list-ul me-1"></i> Inventario</span>
+                            <span class="badge bg-light text-dark border ms-2">Total: {{ recursos|length }}</span>
+                        </div>
+                        
+                        <div class="input-group input-group-sm" style="width: 250px;">
+                            <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                            <input type="text" id="searchRecurso" class="form-control border-start-0 bg-light" placeholder="Buscar recurso...">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" id="recursosTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3 sortable cursor-pointer" onclick="sortTable(0)" data-dir="asc">
+                                        Nombre <i class="bi bi-arrow-down-up small text-muted ms-1"></i>
+                                    </th>
+                                    <th class="text-center sortable cursor-pointer" onclick="sortTable(1)" data-dir="asc">
+                                        Stock <i class="bi bi-arrow-down-up small text-muted ms-1"></i>
+                                    </th>
+                                    <th>Descripción</th>
+                                    <th class="text-end pe-3">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recursoTableBody">
+                                {% for recurso in recursos %}
+                                <tr>
+                                    <td class="ps-3 fw-bold text-dark recurso-name">{{ recurso.nombre }}</td>
+                                    
+                                    <td class="text-center" data-value="{{ recurso.stock }}">
+                                        <span class="badge {% if recurso.stock > 5 %}bg-light text-dark border{% elif recurso.stock > 0 %}bg-warning text-dark{% else %}bg-danger{% endif %} px-3 rounded-pill">
+                                            {{ recurso.stock }}
+                                        </span>
+                                    </td>
+                                    <td><small class="text-muted">{{ recurso.descripcion|default:"-"|truncatechars:40 }}</small></td>
+                                    <td class="text-end pe-3">
+                                        <!-- CORRECCIÓN AQUÍ: Enlace sin prefijo 'inventario:' -->
+                                        <a href="{% url 'editar_recurso' recurso.id %}" 
+                                           class="btn btn-sm btn-outline-primary border-0 me-1" 
+                                           title="Editar">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        
+                                        <!-- CORRECCIÓN AQUÍ: Enlace sin prefijo 'inventario:' -->
+                                        <a href="{% url 'eliminar_recurso' recurso.id %}" 
+                                           class="btn btn-sm btn-outline-danger border-0" 
+                                           title="Eliminar"
+                                           onclick="return confirm('¿Eliminar {{ recurso.nombre }}?');">
+                                            <i class="bi bi-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr class="no-results">
+                                    <td colspan="4" class="text-center text-muted py-5">
+                                        <i class="bi bi-box2 fs-1 d-block mb-2 text-secondary opacity-50"></i>
+                                        No hay recursos registrados.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                <tr id="noResultsRecurso" style="display: none;">
+                                    <td colspan="4" class="text-center text-muted py-4">
+                                        No se encontraron coincidencias.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. VALIDACIÓN DE FORMULARIO (Duplicados)
+    function validateForm() {
+        const inputNombre = document.getElementById('inputNombre');
+        const errorDiv = document.getElementById('errorNombre');
+        const nombreNuevo = inputNombre.value.trim().toUpperCase();
+        
+        // Obtener nombres existentes
+        const nombresExistentes = document.querySelectorAll('.recurso-name');
+        let existe = false;
+
+        nombresExistentes.forEach(td => {
+            if (td.innerText.trim().toUpperCase() === nombreNuevo) {
+                existe = true;
+            }
+        });
+
+        if (existe) {
+            errorDiv.innerText = "Error: Este recurso ya existe en el inventario.";
+            errorDiv.style.display = 'block';
+            inputNombre.classList.add('is-invalid');
+            return false; // Bloquear envío
+        }
+
+        errorDiv.style.display = 'none';
+        inputNombre.classList.remove('is-invalid');
+        return true;
+    }
+
+    // 2. FILTRO DE BÚSQUEDA
+    document.getElementById('searchRecurso').addEventListener('keyup', function() {
+        let filter = this.value.toLowerCase();
+        let rows = document.querySelectorAll('#recursoTableBody tr:not(.no-results):not(#noResultsRecurso)');
+        let visible = 0;
+
+        rows.forEach(row => {
+            if (row.innerText.toLowerCase().includes(filter)) {
+                row.style.display = '';
+                visible++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        document.getElementById('noResultsRecurso').style.display = (visible === 0 && rows.length > 0) ? '' : 'none';
+    });
+
+    // 3. ORDENAMIENTO
+    function sortTable(n) {
+        var table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
+        table = document.getElementById("recursosTable");
+        switching = true;
+        
+        var header = table.rows[0].getElementsByTagName("TH")[n];
+        var currentDir = header.getAttribute("data-dir");
+        
+        if (currentDir === "asc") {
+            dir = "desc";
+        } else {
+            dir = "asc";
+        }
+        header.setAttribute("data-dir", dir);
+
+        while (switching) {
+            switching = false;
+            rows = table.rows;
+            for (i = 1; i < (rows.length - 1); i++) {
+                shouldSwitch = false;
+                x = rows[i].getElementsByTagName("TD")[n];
+                y = rows[i + 1].getElementsByTagName("TD")[n];
+
+                let xVal = x.getAttribute('data-value');
+                let yVal = y.getAttribute('data-value');
+
+                if (xVal !== null && yVal !== null) {
+                    xVal = parseFloat(xVal);
+                    yVal = parseFloat(yVal);
+                } else {
+                    xVal = x.innerText.toLowerCase();
+                    yVal = y.innerText.toLowerCase();
+                }
+
+                if (dir == "asc") {
+                    if (xVal > yVal) { shouldSwitch = true; break; }
+                } else if (dir == "desc") {
+                    if (xVal < yVal) { shouldSwitch = true; break; }
+                }
+            }
+            if (shouldSwitch) {
+                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                switching = true;
+                switchcount++;
+            }
+        }
+    }
+</script>
+
+<style>
+    .cursor-pointer { cursor: pointer; }
+    .sortable:hover { background-color: #f1f1f1; user-select: none; }
+</style>
+{% endblock %}
+
+

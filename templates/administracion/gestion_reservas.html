@@ -1,0 +1,299 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestión de Reservas{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+        <h1 class="h2" style="color: #333333;"><i class="bi bi-list-check me-2"></i> Gestión de Solicitudes</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                {% if con_archivo == 'si' %}
+                    <a href="?estado={{ filtro_actual }}" class="btn btn-sm btn-secondary active">
+                        <i class="bi bi-x-lg"></i> Quitar Filtro Archivos
+                    </a>
+                {% else %}
+                    <a href="?estado={{ filtro_actual }}&con_archivo=si" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-paperclip"></i> Ver solo con Adjuntos
+                    </a>
+                {% endif %}
+            </div>
+
+            <a href="{% url 'export_reservas_excel' %}" class="btn btn-sm btn-outline-success">
+                <i class="bi bi-file-earmark-spreadsheet"></i> Exportar a Excel
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link {% if filtro_actual == 'TODAS' %}active{% endif %}" href="?estado=TODAS">Todas</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if filtro_actual == 'PENDIENTE' %}active bg-warning text-dark{% endif %}" href="?estado=PENDIENTE">Pendientes</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if filtro_actual == 'APROBADA' %}active bg-success text-white{% endif %}" href="?estado=APROBADA">Aprobadas</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if filtro_actual == 'RECHAZADA' %}active bg-danger text-white{% endif %}" href="?estado=RECHAZADA">Rechazadas</a>
+        </li>
+    </ul>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th scope="col" class="ps-4">ID / Solicitante</th>
+                        <th scope="col">Espacio</th>
+                        <th scope="col">Fecha</th>
+                        <th scope="col" class="text-center" style="min-width: 120px;">Adjunto</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col" class="text-end pe-4">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for reserva in reservas %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="fw-bold">#{{ reserva.id }}</div>
+                            <div class="small text-muted">{{ reserva.solicitante.email }}</div>
+                            {% if reserva.recursos_asociados.exists %}
+                                <span class="badge bg-info text-dark" style="font-size: 0.65rem;">
+                                    <i class="bi bi-box-seam"></i> Con Recursos
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="fw-bold">{{ reserva.espacio.nombre }}</div>
+                        </td>
+                        <td>
+                            <div>{{ reserva.fecha|date:"d M Y" }}</div>
+                            <div class="small text-muted">{{ reserva.hora_inicio|time:"H:i" }} - {{ reserva.hora_fin|time:"H:i" }}</div>
+                        </td>
+                        
+                        <td class="text-center">
+                            {% if reserva.archivo_adjunto %}
+                                <div class="btn-group" role="group">
+                                    <a href="{{ reserva.archivo_adjunto.url }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Ver archivo en nueva pestaña">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{{ reserva.archivo_adjunto.url }}" download class="btn btn-sm btn-outline-dark" title="Descargar archivo">
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                </div>
+                                <div class="small text-muted mt-1" style="font-size: 0.7rem;">
+                                    {% if '.pdf' in reserva.archivo_adjunto.name %}PDF{% else %}Excel{% endif %}
+                                </div>
+                            {% else %}
+                                <span class="text-muted opacity-25">-</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if reserva.estado == 'PENDIENTE' %}
+                                <span class="badge bg-warning text-dark">EN REVISIÓN</span>
+                            {% elif reserva.estado == 'APROBADA' %}
+                                <span class="badge bg-success">APROBADA</span>
+                            {% elif reserva.estado == 'RECHAZADA' %}
+                                <span class="badge bg-danger">RECHAZADA</span>
+                            {% else %}
+                                <span class="badge bg-secondary">CANCELADA</span>
+                            {% endif %}
+                        </td>
+                        
+                        <td class="text-end pe-4">
+                            <button type="button" class="btn btn-sm btn-primary me-1" data-bs-toggle="modal" data-bs-target="#modalDetalle{{ reserva.id }}">
+                                <i class="bi bi-eye"></i> Detalle
+                            </button>
+
+                            {% if reserva.estado == 'PENDIENTE' %}
+                                <form method="post" action="{% url 'aprobar_reserva' reserva.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" name="action" value="APROBAR" class="btn btn-sm btn-success me-1" title="Aprobar">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                    <button type="submit" name="action" value="RECHAZAR" class="btn btn-sm btn-danger" title="Rechazar">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
+                            
+                            <!-- AGREGADO: BOTÓN PARA CANCELAR APROBADAS -->
+                            {% elif reserva.estado == 'APROBADA' %}
+                                <form id="form-cancelar-{{ reserva.id }}" method="post" action="{% url 'cancelar_forzosamente' reserva.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="button" class="btn btn-sm btn-outline-danger" title="Cancelar Forzosamente" onclick="confirmarCancelacion('{{ reserva.id }}')">
+                                        <i class="bi bi-slash-circle"></i> Cancelar
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <!-- MODAL DE DETALLE -->
+                    <div class="modal fade" id="modalDetalle{{ reserva.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-xl">
+                            <div class="modal-content">
+                                <div class="modal-header bg-light">
+                                    <h5 class="modal-title fw-bold">Solicitud #{{ reserva.id }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <div class="col-md-4 border-end">
+                                            <h6 class="text-primary fw-bold mb-3">Datos Generales</h6>
+                                            <div class="mb-2">
+                                                <strong class="text-dark">Solicitante:</strong> 
+                                                <span class="text-secondary">{{ reserva.solicitante.get_full_name|default:reserva.solicitante.email }}</span>
+                                            </div>
+                                            <div class="mb-2">
+                                                <strong class="text-dark">Email:</strong> 
+                                                <span class="text-secondary">{{ reserva.solicitante.email }}</span>
+                                            </div>
+                                            <div class="mb-2">
+                                                <strong class="text-dark">Espacio:</strong> {{ reserva.espacio.nombre }}
+                                            </div>
+                                            <div class="mb-2">
+                                                <strong class="text-dark">Fecha:</strong> 
+                                                {{ reserva.fecha }} <span class="small text-muted">({{ reserva.hora_inicio }} - {{ reserva.hora_fin }})</span>
+                                            </div>
+                                            <div class="mt-3">
+                                                <strong class="text-dark">Motivo:</strong>
+                                                <div class="p-2 bg-light border rounded mt-1 small fst-italic">{{ reserva.motivo }}</div>
+                                            </div>
+                                            
+                                            <!-- Mostrar motivo de cancelación si existe -->
+                                            {% if reserva.estado == 'CANCELADA' and reserva.motivo_cancelacion %}
+                                                <div class="mt-3 alert alert-danger py-2 small">
+                                                    <strong>Cancelada por:</strong><br>
+                                                    {{ reserva.motivo_cancelacion }}
+                                                </div>
+                                            {% endif %}
+                                            
+                                            <div class="mt-3">
+                                                <strong class="text-dark">Recursos:</strong>
+                                                {% if reserva.recursos_asociados.all %}
+                                                    <ul class="list-group list-group-flush mt-1 small">
+                                                        {% for rr in reserva.recursos_asociados.all %}
+                                                            <li class="list-group-item d-flex justify-content-between px-0 py-1">
+                                                                <span>{{ rr.recurso.nombre }}</span>
+                                                                <span class="badge bg-secondary">{{ rr.cantidad }}</span>
+                                                            </li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                {% else %}
+                                                    <span class="text-muted ms-2 small">Ninguno.</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-8">
+                                            <h6 class="text-primary fw-bold mb-3">Documentación Adjunta</h6>
+                                            {% if reserva.archivo_adjunto %}
+                                                <div class="d-grid gap-2 mb-3">
+                                                    <a href="{{ reserva.archivo_adjunto.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                        <i class="bi bi-box-arrow-up-right"></i> Abrir en nueva pestaña
+                                                    </a>
+                                                    <a href="{{ reserva.archivo_adjunto.url }}" download class="btn btn-sm btn-outline-dark">
+                                                        <i class="bi bi-download"></i> Descargar
+                                                    </a>
+                                                </div>
+                                                {% if '.pdf' in reserva.archivo_adjunto.name %}
+                                                    <div class="card bg-light border-0 shadow-sm">
+                                                        <div class="card-body p-0" style="height: 500px;">
+                                                            <iframe src="{{ reserva.archivo_adjunto.url }}" width="100%" height="100%" style="border:none;">
+                                                                <p>Tu navegador no puede mostrar este PDF. <a href="{{ reserva.archivo_adjunto.url }}">Descárgalo aquí</a>.</p>
+                                                            </iframe>
+                                                        </div>
+                                                    </div>
+                                                {% else %}
+                                                    <div class="alert alert-warning text-center mt-4">
+                                                        <i class="bi bi-file-earmark-excel fs-1 d-block mb-2"></i>
+                                                        <p class="fw-bold">Por favor, descargue el archivo para verlo.</p>
+                                                    </div>
+                                                {% endif %}
+                                            {% else %}
+                                                <div class="text-center py-5 text-muted bg-light rounded h-100 d-flex flex-column justify-content-center">
+                                                    <i class="bi bi-file-earmark-x fs-1 opacity-25"></i>
+                                                    <p class="mt-2 small">No se adjuntaron archivos.</p>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Fin Modal -->
+
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-5">
+                            <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                            No hay solicitudes que coincidan con los filtros.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- SweetAlert2 para el popup del motivo -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    function confirmarCancelacion(id) {
+        Swal.fire({
+            title: 'Cancelar Reserva Aprobada',
+            text: "Esta acción cancelará la reserva y liberará el espacio. Por favor, indica el motivo:",
+            input: 'textarea',
+            inputPlaceholder: 'Ej: Mantenimiento urgente, Error de asignación...',
+            inputAttributes: {
+                'aria-label': 'Escribe el motivo de la cancelación'
+            },
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Sí, cancelar',
+            cancelButtonText: 'Volver',
+            inputValidator: (value) => {
+                if (!value) {
+                    return 'Debes escribir un motivo para cancelar.';
+                }
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const form = document.getElementById('form-cancelar-' + id);
+                
+                // Creamos un input oculto para enviar el motivo al backend
+                const inputMotivo = document.createElement('input');
+                inputMotivo.type = 'hidden';
+                inputMotivo.name = 'motivo_cancelacion';
+                inputMotivo.value = result.value;
+                
+                form.appendChild(inputMotivo);
+                form.submit();
+            }
+        });
+    }
+</script>
+{% endblock %}

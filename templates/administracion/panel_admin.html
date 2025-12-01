@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+
+{% block title %}Panel Administración - INACAP{% endblock %}
+
+{% block content %}
+<style>
+:root{--inacap-red:#D71920;--inacap-text:#333333}
+.card-header-inacap{background:var(--inacap-red);color:#fff}
+.tab-content .card{border-radius:.5rem}
+.table-wrap{max-height:520px;overflow:auto}
+</style>
+
+<div class="container-fluid py-4" style="background:#F8F9FA;min-height:75vh;color:var(--inacap-text)">
+  <div class="d-flex justify-content-between mb-3 align-items-center">
+    <div>
+      <h3 class="mb-0">Panel Administración</h3>
+      <small class="text-muted">Área de control y operaciones institucionales</small>
+    </div>
+    <div>
+      <a href="{% url 'administracion:export_reservas_csv' %}" class="btn btn-sm btn-outline-secondary">Exportar Reservas (.csv)</a>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  {% if kpi_pendientes is not None %}
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card shadow-sm" style="border-top:4px solid var(--inacap-red)">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <small class="text-uppercase text-muted">Solicitudes Pendientes</small>
+            <div class="h3 mb-0">{{ kpi_pendientes }}</div>
+          </div>
+          <i class="bi bi-exclamation-circle fs-1 text-danger"></i>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm" style="border-top:4px solid var(--inacap-red)">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <small class="text-uppercase text-muted">Ocupación Hoy</small>
+            <div class="h3 mb-0">{{ ocupacion_hoy }}</div>
+          </div>
+          <i class="bi bi-calendar-day fs-1 text-danger"></i>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm" style="border-top:4px solid var(--inacap-red)">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <small class="text-uppercase text-muted">Recursos Críticos</small>
+            <div class="h3 mb-0">{{ recursos_criticos }}</div>
+          </div>
+          <i class="bi bi-box-seam fs-1 text-danger"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <!-- Nav tabs -->
+      <ul class="nav nav-tabs mb-3" role="tablist">
+        <li class="nav-item" role="presentation"><a class="nav-link {% if not active_tab or active_tab=='usuarios' %}active{% endif %}" href="#usuarios" data-bs-toggle="tab">Usuarios</a></li>
+        <li class="nav-item" role="presentation"><a class="nav-link {% if active_tab=='inventario' %}active{% endif %}" href="#inventario" data-bs-toggle="tab">Inventario</a></li>
+        <li class="nav-item" role="presentation"><a class="nav-link {% if active_tab=='torre' %}active{% endif %}" href="#torre" data-bs-toggle="tab">Torre de Control</a></li>
+        <li class="nav-item" role="presentation"><a class="nav-link {% if active_tab=='auditoria' %}active{% endif %}" href="#auditoria" data-bs-toggle="tab">Auditoría</a></li>
+      </ul>
+
+      <div class="tab-content">
+        <!-- USUARIOS -->
+        <div class="tab-pane fade {% if not active_tab or active_tab=='usuarios' %}show active{% endif %}" id="usuarios">
+          <div class="mb-3 d-flex">
+            <form class="d-flex" method="get" action="{% url 'administracion:usuarios' %}">
+              <input name="q" class="form-control form-control-sm me-2" placeholder="Buscar usuario..." value="{{ request.GET.q }}">
+              <button class="btn btn-sm btn-outline-secondary" type="submit">Buscar</button>
+            </form>
+          </div>
+
+          <div class="table-responsive table-wrap">
+            <table class="table table-hover align-middle">
+              <thead class="table-light">
+                <tr><th>#</th><th>Usuario</th><th>Email</th><th>Rol</th><th>Activo</th><th>Acciones</th></tr>
+              </thead>
+              <tbody>
+                {% for u in users %}
+                <tr>
+                  <td>{{ u.id }}</td>
+                  <td>{{ u.get_full_name|default:u.username }}</td>
+                  <td>{{ u.email }}</td>
+                  <td>{{ u.rol }}</td>
+                  <td>{% if u.is_active %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-danger">Bloqueado</span>{% endif %}</td>
+                  <td>
+                    <form method="post" action="{% url 'administracion:usuarios_editar_rol' u.id %}" style="display:inline">{% csrf_token %}
+                      <select name="rol" class="form-select form-select-sm d-inline w-auto">
+                        <option value="ADMIN">ADMIN</option>
+                        <option value="COORDINADOR">COORDINADOR</option>
+                        <option value="SOLICITANTE">SOLICITANTE</option>
+                      </select>
+                      <button class="btn btn-sm btn-outline-primary ms-1" type="submit">Editar Rol</button>
+                    </form>
+
+                    <form method="post" action="{% url 'administracion:usuarios_bloquear' u.id %}" style="display:inline">{% csrf_token %}
+                      <button class="btn btn-sm btn-outline-danger ms-1" type="submit">{% if u.is_active %}Bloquear{% else %}Habilitar{% endif %}</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- INVENTARIO -->
+        <div class="tab-pane fade {% if active_tab=='inventario' %}show active{% endif %}" id="inventario">
+          <ul class="nav nav-pills mb-3">
+            <li class="nav-item"><a class="nav-link active" data-bs-toggle="pill" href="#tab-espacios">Espacios</a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#tab-recursos">Recursos</a></li>
+          </ul>
+
+          <div class="tab-content">
+            <div class="tab-pane fade show active" id="tab-espacios">
+              <div class="table-responsive table-wrap">
+                <table class="table table-hover align-middle">
+                  <thead class="table-light"><tr><th>#</th><th>Nombre</th><th>Capacidad</th><th>Ubicación</th><th>Estado</th><th>Acciones</th></tr></thead>
+                  <tbody>
+                    {% for e in espacios %}
+                    <tr>
+                      <td>{{ e.id }}</td>
+                      <td>{{ e.nombre }}</td>
+                      <td>{{ e.capacidad }}</td>
+                      <td>{{ e.ubicacion }}</td>
+                      <td>{{ e.estado }}</td>
+                      <td>
+                        <form method="post" action="{% url 'administracion:espacio_set_estado' e.id %}">{% csrf_token %}
+                          <select name="estado" class="form-select form-select-sm d-inline w-auto">
+                            <option value="DISPONIBLE">DISPONIBLE</option>
+                            <option value="EN_MANTENCION">EN_MANTENCION</option>
+                            <option value="NO_DISPONIBLE">NO_DISPONIBLE</option>
+                          </select>
+                          <button class="btn btn-sm btn-outline-primary ms-1" type="submit">Actualizar</button>
+                        </form>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="tab-pane fade" id="tab-recursos">
+              <div class="table-responsive table-wrap">
+                <table class="table table-hover align-middle">
+                  <thead class="table-light"><tr><th>#</th><th>Nombre</th><th>Tipo</th><th>Stock</th><th>Acciones</th></tr></thead>
+                  <tbody>
+                    {% for r in recursos %}
+                    <tr>
+                      <td>{{ r.id }}</td>
+                      <td>{{ r.nombre }}</td>
+                      <td>{{ r.tipo }}</td>
+                      <td>{{ r.stock_total }}</td>
+                      <td>
+                        <form method="post" action="{% url 'administracion:recurso_update_stock' r.id %}">{% csrf_token %}
+                          <input type="number" name="stock_total" value="{{ r.stock_total }}" class="form-control form-control-sm d-inline w-auto">
+                          <button class="btn btn-sm btn-outline-primary ms-1" type="submit">Guardar</button>
+                        </form>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TORRE DE CONTROL -->
+        <div class="tab-pane fade {% if active_tab=='torre' %}show active{% endif %}" id="torre">
+          <div class="table-responsive table-wrap">
+            <table class="table table-hover align-middle">
+              <thead class="table-light"><tr><th>#</th><th>Solicitante</th><th>Espacio</th><th>Fecha</th><th>Inicio</th><th>Fin</th><th>Estado</th><th>Acciones</th></tr></thead>
+              <tbody>
+                {% for r in reservas_admin %}
+                <tr {% comment %}Aquí se podría resaltar conflictos con clases{% endcomment %}>
+                  <td>{{ r.id }}</td>
+                  <td>{{ r.solicitante }}</td>
+                  <td>{{ r.espacio }}</td>
+                  <td>{{ r.fecha }}</td>
+                  <td>{{ r.hora_inicio }}</td>
+                  <td>{{ r.hora_fin }}</td>
+                  <td>
+                    {% if r.estado|lower contains 'aprob' %}
+                      <span class="badge bg-success">{{ r.estado }}</span>
+                    {% elif r.estado|lower contains 'pend' %}
+                      <span class="badge bg-warning text-dark">{{ r.estado }}</span>
+                    {% elif r.estado|lower contains 'rech' or r.estado|lower contains 'cancel' %}
+                      <span class="badge bg-danger">{{ r.estado }}</span>
+                    {% else %}
+                      <span class="badge bg-secondary">{{ r.estado }}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <form method="post" action="{% url 'administracion:reserva_cambiar_estado' r.id %}" style="display:inline">{% csrf_token %}
+                      <select name="estado" class="form-select form-select-sm d-inline w-auto">
+                        <option value="APROBADA">APROBAR</option>
+                        <option value="RECHAZADA">RECHAZAR</option>
+                        <option value="PENDIENTE">PONER PENDIENTE</option>
+                      </select>
+                      <button class="btn btn-sm btn-outline-primary ms-1" type="submit">OK</button>
+                    </form>
+
+                    {% if r.estado|lower contains 'aprob' %}
+                    <form method="post" action="{% url 'administracion:reserva_cancelar_forzado' r.id %}" style="display:inline">{% csrf_token %}
+                      <button class="btn btn-sm btn-outline-danger ms-1" type="submit">Cancelar Forzado</button>
+                    </form>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- AUDITORIA -->
+        <div class="tab-pane fade {% if active_tab=='auditoria' %}show active{% endif %}" id="auditoria">
+          <div class="table-responsive table-wrap">
+            <table class="table table-hover align-middle">
+              <thead class="table-light"><tr><th>Tiempo</th><th>Usuario</th><th>Acción</th><th>Objeto</th></tr></thead>
+              <tbody>
+                {% for log in logs %}
+                <tr>
+                  <td>{{ log.action_time }}</td>
+                  <td>{{ log.user }}</td>
+                  <td>{{ log.get_change_message }}</td>
+                  <td>{{ log.content_type }} #{{ log.object_id }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
