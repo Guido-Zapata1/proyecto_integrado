@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+
+{% block title %}Reportes{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4" style="background:#F4F6F9; min-height:70vh;">
+  <div class="row justify-content-center">
+    <div class="col-lg-11">
+
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+        <div>
+          <h4 style="color:#333333" class="mb-0 fw-bold">
+            <i class="bi bi-file-earmark-spreadsheet me-2 text-danger"></i>Reportes
+          </h4>
+          <small class="text-muted">Descargas Excel (2 hojas: Resumen + Detalle).</small>
+        </div>
+
+        <form method="get" class="d-flex gap-2 align-items-center">
+          <label class="text-muted small mb-0" for="id_year">Año</label>
+          <input id="id_year" name="year" type="number" min="2000" max="2100"
+                 class="form-control" style="width: 120px" value="{{ year }}">
+          <button class="btn btn-danger" type="submit">
+            <i class="bi bi-funnel"></i> Aplicar
+          </button>
+        </form>
+      </div>
+
+      <!-- ✅ MIS REPORTES: para TODOS los usuarios autenticados (ADMIN incluido) -->
+      <h6 class="fw-bold mb-3">Mis Reportes (Personales)</h6>
+      <div class="row g-3 mb-4">
+        <div class="col-md-6 col-lg-4">
+          <div class="card shadow-sm h-100" style="border-radius:14px;">
+            <div class="card-body">
+              <h6 class="fw-bold mb-2"><i class="bi bi-calendar-check text-danger me-2"></i>U1 Mis Reservas</h6>
+              <p class="text-muted small mb-3">Resumen + detalle pivot de tus reservas del año.</p>
+              <a class="btn btn-outline-danger w-100" href="{% url 'reportes:u1_mis_reservas_excel' %}?year={{ year }}">
+                <i class="bi bi-download"></i> Descargar Excel
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+          <div class="card shadow-sm h-100" style="border-radius:14px;">
+            <div class="card-body">
+              <h6 class="fw-bold mb-2"><i class="bi bi-box-seam text-danger me-2"></i>U2 Mis Recursos</h6>
+              <p class="text-muted small mb-3">Ranking + % y detalle por reserva (APROBADA).</p>
+              <a class="btn btn-outline-danger w-100" href="{% url 'reportes:u2_mis_recursos_excel' %}?year={{ year }}">
+                <i class="bi bi-download"></i> Descargar Excel
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+          <div class="card shadow-sm h-100" style="border-radius:14px;">
+            <div class="card-body">
+              <h6 class="fw-bold mb-2"><i class="bi bi-building text-danger me-2"></i>U3 Mis Espacios</h6>
+              <p class="text-muted small mb-3">Tus espacios más usados + horas + detalle pivot.</p>
+              <a class="btn btn-outline-danger w-100" href="{% url 'reportes:u3_mis_espacios_excel' %}?year={{ year }}">
+                <i class="bi bi-download"></i> Descargar Excel
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ✅ PACK ADMIN -->
+      {% if user.rol == 'ADMIN' or user.is_superuser %}
+      <h6 class="fw-bold mb-3">Pack Administración (8 reportes)</h6>
+
+      <div class="alert alert-light border mb-4">
+        <i class="bi bi-info-circle"></i>
+        Reportes 1–6 consideran solo estado <b>APROBADA</b>. Reportes 7–8 incluyen <b>todos los estados</b>.
+      </div>
+
+      <div class="row g-3">
+        <div class="col-md-6 col-lg-4">
+          <div class="card shadow-sm h-100" style="border-radius:14px;">
+            <div class="card-body">
+              <h6 class="fw-bold mb-2"><i class="bi bi-box-seam text-danger me-2"></i>R1 Recursos (Global)</h6>
+              <p class="text-muted small mb-3">Ranking + % del total.</p>
+              <a class="btn btn-outline-danger w-100" href="{% url 'reportes:r1_recursos_global_excel' %}?year={{ year }}">
+                <i class="bi bi-download"></i> Descargar Excel
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+          <div class="card shadow-sm h-100" style="border-radius:14px;">
+            <div class="card-body">
+              <h6 class="fw-bold mb-2"><i class="bi bi-diagram-3 text-danger me-2"></i>R2 Recursos por Área</h6>
+              <p class="text-muted small mb-3">% dentro del área + detalle.</p>
+              <a class="btn btn-outline-danger w-100" href="{% url 'reportes:r2_recursos_por_area_excel' %}?year={{ year }}">
+                <i class="bi bi-download"></i> Descargar Excel
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+          <div class="card shadow-sm h-100" style="border-radius:14px;">
+            <div class="card-body">
+              <h6 class="fw-bold mb-2"><i class="bi bi-building text-danger me-2"></i>R3 Espacios (Global)</h6>
+              <p class="text-muted small mb-3">Reservas + % + horas.</p>
+              <a class="btn btn-outline-danger w-100" href="{% url 'reportes:r3_espacios_global_excel' %}?year={{ year }}">
+                <i class="bi bi-download"></i> Descargar Excel
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+          <div class="card shadow-sm h-100" style="border-radius:14px;">
+            <div class="card-body">
+              <h6 class="fw-bold mb-2"><i class="bi bi-building-check text-danger me-2"></i>R4 Espacios por Área</h6>
+              <p class="text-muted small mb-3">% dentro del área + horas.</p>
+              <a class="btn btn-outline-danger w-100" href="{% url 'reportes:r4_espacios_por_area_excel' %}?year={{ year }}">
+                <i class="bi bi-download"></i> Descargar Excel
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+          <div class="card shadow-sm h-100" style="border-radius:14px;">
+            <div class="card-body">
+              <h6 class="fw-bold mb-2"><i class="bi bi-bar-chart text-danger me-2"></i>R5 Uso por Área</h6>
+              <p class="text-muted small mb-3">Ranking + % + horas + recursos.</p>
+              <a class="btn btn-outline-danger w-100" href="{% url 'reportes:r5_uso_por_area_excel' %}?year={{ year }}">
+                <i class="bi bi-download"></i> Descargar Excel
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+          <div class="card shadow-sm h-100" style="border-radius:14px;">
+            <div class="card-body">
+              <h6 class="fw-bold mb-2"><i class="bi bi-graph-up text-danger me-2"></i>R6 Tendencia mensual</h6>
+              <p class="text-muted small mb-3">Ene–Dic por área + detalle.</p>
+              <a class="btn btn-outline-danger w-100" href="{% url 'reportes:r6_tendencia_mensual_por_area_excel' %}?year={{ year }}">
+                <i class="bi bi-download"></i> Descargar Excel
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-6">
+          <div class="card shadow-sm h-100" style="border-radius:14px;">
+            <div class="card-body">
+              <h6 class="fw-bold mb-2"><i class="bi bi-check2-circle text-danger me-2"></i>R7 Estados por Área</h6>
+              <p class="text-muted small mb-3">Todos los estados + % aprobación.</p>
+              <a class="btn btn-outline-danger w-100" href="{% url 'reportes:r7_estados_por_area_excel' %}?year={{ year }}">
+                <i class="bi bi-download"></i> Descargar Excel
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6 col-lg-6">
+          <div class="card shadow-sm h-100" style="border-radius:14px;">
+            <div class="card-body">
+              <h6 class="fw-bold mb-2"><i class="bi bi-shield-check text-danger me-2"></i>R8 Auditoría detallada</h6>
+              <p class="text-muted small mb-3">Resumen por área + detalle pivot completo.</p>
+              <a class="btn btn-outline-danger w-100" href="{% url 'reportes:r8_auditoria_detallada_excel' %}?year={{ year }}">
+                <i class="bi bi-download"></i> Descargar Excel
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}

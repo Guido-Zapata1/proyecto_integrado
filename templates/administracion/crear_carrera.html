@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-info text-dark">
+                    <h4 class="mb-0">Registrar Nueva Carrera</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">1. Selecciona el Área</label>
+                            {{ form.area }}
+                            <div class="form-text">La carrera pertenecerá a esta facultad/departamento.</div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label">Nombre Carrera</label>
+                                {{ form.nombre }}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Código</label>
+                                {{ form.codigo }}
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-3">
+                            <button type="submit" class="btn btn-primary">Guardar Carrera</button>
+                            <a href="{% url 'gestion_carreras' %}" class="btn btn-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

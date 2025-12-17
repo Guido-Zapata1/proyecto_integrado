@@ -4,351 +4,684 @@
 {% block title %}Nueva Reserva{% endblock %}
 
 {% block extra_css %}
-<!-- FullCalendar CSS -->
-<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css' rel='stylesheet' />
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
+<style>
+  /* --- Estilos Tarjetas Espacios --- */
+  .space-card {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    background: #fff;
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+  }
+  .space-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0,0,0,.08);
+    border-color: #D71920;
+  }
+  .space-card.selected {
+    border: 2px solid #D71920;
+    background: #fff5f5;
+  }
+  .check-icon {
+    display: none;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #fff;
+    color: #D71920;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    text-align: center;
+    line-height: 24px;
+    font-size: 16px;
+    box-shadow: 0 2px 5px rgba(0,0,0,.15);
+    z-index: 10;
+  }
+  .space-card.selected .check-icon { display: block !important; }
+
+  /* --- Utilidades --- */
+  #calendar { min-height: 600px; }
+  .stock-control { background: #f8f9fa; border: 1px dashed #ced4da; padding: 15px; border-radius: 8px; }
+  .rules-box { background: #eaf2f8; border-left: 4px solid #D71920; color: #444; }
+  .rules-list li { margin-bottom: 8px; font-size: .9rem; }
+
+  .btn-inacap { background-color: #D71920; color: white; border: none; font-weight: 500; }
+  .btn-inacap:hover { background-color: #b0151a; color: white; }
+
+  /* Ocultar inputs Django */
+  .d-none-input { display: none; }
+
+  /* Selects de horario (bloques) */
+  .time-block-select{
+    border-radius: 10px;
+    height: 42px;
+  }
+</style>
 {% endblock %}
 
 {% block content %}
-<!-- ESTILOS ESPECÍFICOS PARA EL BLINDAJE DE IMÁGENES -->
-<style>
-    /* Tarjeta del Espacio */
-    .space-card {
-        cursor: pointer;
-        transition: transform 0.2s, box-shadow 0.2s;
-        border: 1px solid #dee2e6;
-        border-radius: 12px;
-        background-color: #fff;
-        position: relative;
-        overflow: hidden; /* CRÍTICO: Corta cualquier cosa que intente salirse */
-        padding: 15px;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .space-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-        border-color: #adb5bd;
-    }
-
-    .space-card.selected {
-        border: 2px solid #D71920; /* Borde rojo al seleccionar */
-        background-color: #fff5f5;
-    }
-
-    /* CONTENEDOR DE IMAGEN (Cuadrado Redondeado) */
-    .space-img-container {
-        width: 100px !important;  /* Un poco más grande para el formato cuadrado */
-        height: 100px !important; 
-        min-width: 100px !important;
-        min-height: 100px !important;
-        
-        margin: 10px auto; /* Separación vertical */
-        
-        border-radius: 12px; /* CAMBIO: Cuadrado con bordes suaves en lugar de círculo (50%) */
-        border: 1px solid #dee2e6; /* Borde sutil */
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        
-        overflow: hidden; /* Recorta la imagen para respetar los bordes redondeados */
-        background-color: #f8f9fa;
-        
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    /* LA IMAGEN EN SÍ */
-    .space-img {
-        width: 100% !important;
-        height: 100% !important;
-        object-fit: cover !important; /* Escala la foto para llenar el cuadrado sin deformarse */
-        display: block;
-    }
-
-    /* Check de selección */
-    .check-icon {
-        display: none;
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        color: #198754;
-        background: white;
-        border-radius: 50%;
-        z-index: 5;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .space-card.selected .check-icon {
-        display: block !important;
-    }
-
-    /* Otros estilos utilitarios */
-    .visually-hidden-select {
-        position: absolute;
-        width: 1px; height: 1px;
-        padding: 0; margin: -1px;
-        overflow: hidden; clip: rect(0,0,0,0);
-        border: 0;
-    }
-    #calendar { max-height: 500px; }
-    .stock-control {
-        background: #fff;
-        border: 1px dashed #ced4da;
-        padding: 15px;
-        border-radius: 8px;
-    }
-</style>
-
 <div class="container py-4">
-    
-    <!-- Encabezado -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold mb-0 text-dark">Nueva Solicitud</h2>
-            <p class="text-muted mb-0">Complete el formulario para reservar un espacio.</p>
-        </div>
-        <a href="{% url 'home' %}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Volver
-        </a>
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold mb-0 text-dark">Nueva Solicitud</h2>
+      <p class="text-muted mb-0">Gestión de espacios y recursos académicos.</p>
     </div>
+    <a href="{% url 'home' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Volver al Inicio
+    </a>
+  </div>
 
-    <!-- Mensajes -->
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        {% endfor %}
-    {% endif %}
+  <!-- INFO SOLICITANTE -->
+  <div class="card border-0 shadow-sm mb-4 bg-light">
+    <div class="card-body py-3 d-flex align-items-center">
+      <div class="bg-white rounded-circle p-2 shadow-sm me-3 text-danger">
+        <i class="bi bi-person-vcard fs-4"></i>
+      </div>
+      <div>
+        <span class="text-uppercase small fw-bold text-muted" style="letter-spacing: 1px;">Solicitante</span>
+        <div class="d-flex align-items-center flex-wrap gap-2">
+          <span class="fw-bold text-dark fs-5">{{ user.get_full_name|default:user.email }}</span>
 
-    <div class="row">
-        <!-- COLUMNA IZQUIERDA: Formulario -->
-        <div class="col-lg-8">
-            <div class="card shadow-sm border-0">
-                <div class="card-body p-4">
-                    <form method="post" id="reservaForm" enctype="multipart/form-data" novalidate>
-                        {% csrf_token %}
-                        
-                        <!-- 1. SELECCIÓN DE ESPACIO (Rejilla de Iconos) -->
-                        <h5 class="text-primary mb-3"><i class="bi bi-grid-fill me-2"></i>Seleccione un Espacio</h5>
-                        
-                        <div class="row g-3 mb-4">
-                            {% for espacio in espacios %}
-                            <div class="col-6 col-md-3"> <!-- 4 por fila en escritorio, 2 en móvil -->
-                                <div class="space-card shadow-sm" onclick="selectSpace('{{ espacio.id }}', this)">
-                                    
-                                    <!-- Icono Check -->
-                                    <div class="check-icon">
-                                        <i class="bi bi-check-circle-fill fs-5"></i>
-                                    </div>
+          <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3 rounded-pill">
+            <i class="bi bi-building me-1"></i> Área: {{ user.nombre_area }}
+          </span>
 
-                                    <!-- 1. Nombre Arriba (Texto pequeño y en negrita) -->
-                                    <div class="fw-bold text-dark text-uppercase text-center text-truncate w-100 small mb-2" title="{{ espacio.nombre }}">
-                                        {{ espacio.nombre }}
-                                    </div>
-
-                                    <!-- 2. Imagen Cuadrada (Thumbnail) -->
-                                    <div class="space-img-container">
-                                        {% if espacio.imagen %}
-                                            <img src="{{ espacio.imagen.url }}" class="space-img" alt="Foto">
-                                        {% else %}
-                                            <i class="bi bi-building text-secondary opacity-50 fs-1"></i>
-                                        {% endif %}
-                                    </div>
-
-                                    <!-- 3. Capacidad Abajo -->
-                                    <div class="text-muted text-center mt-1" style="font-size: 0.75rem;">
-                                        <i class="bi bi-people-fill me-1"></i>Cap: {{ espacio.capacidad }}
-                                    </div>
-                                </div>
-                            </div>
-                            {% empty %}
-                            <div class="col-12 text-center text-muted py-4 bg-light rounded">
-                                <i class="bi bi-info-circle me-2"></i>No hay espacios disponibles activos.
-                            </div>
-                            {% endfor %}
-                        </div>
-
-                        <!-- Select Oculto -->
-                        <div class="mb-3 position-relative">
-                            {{ form.espacio }} 
-                            <div id="availability-status" class="form-text mt-1"></div>
-                            {% if form.espacio.errors %}
-                                <div class="alert alert-danger py-1 small text-center mt-2">{{ form.espacio.errors.0 }}</div>
-                            {% endif %}
-                        </div>
-
-                        <!-- 2. Detalles de Fecha y Hora -->
-                        <h5 class="text-primary mb-3 pt-2 border-top"><i class="bi bi-clock-history me-2"></i>Horario</h5>
-                        
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold small text-muted">Fecha</label>
-                                {{ form.fecha }}
-                                <div id="date-error" class="text-danger small d-none mt-1">
-                                    <i class="bi bi-exclamation-circle"></i> Mínimo 24 hrs antes.
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold small text-muted">Hora Inicio</label>
-                                {{ form.hora_inicio }}
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold small text-muted">Hora Fin</label>
-                                {{ form.hora_fin }}
-                            </div>
-                        </div>
-                        <div id="time-error" class="alert alert-danger py-2 d-none small"></div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold small text-muted">Motivo</label>
-                            {{ form.motivo }}
-                        </div>
-
-                        <!-- 3. Documentos -->
-                        <div class="mb-4">
-                            <label class="form-label fw-bold small text-muted">Documento Adjunto (Opcional)</label>
-                            {{ form.archivo_adjunto }}
-                            <div class="form-text small text-muted">
-                                <i class="bi bi-file-earmark-pdf"></i> PDF o Excel. Máximo 5MB.
-                            </div>
-                            {% if form.archivo_adjunto.errors %}
-                                <div class="text-danger small">{{ form.archivo_adjunto.errors.0 }}</div>
-                            {% endif %}
-                        </div>
-
-                        <!-- 4. Recursos -->
-                        <h5 class="text-primary mb-3 border-top pt-3"><i class="bi bi-box-seam-fill me-2"></i>Recursos Adicionales</h5>
-                        
-                        <div class="stock-control mb-3">
-                            <div class="alert alert-warning py-2 d-none" id="stock-alert"></div>
-                            
-                            <div class="row g-2 align-items-end">
-                                <div class="col-md-6">
-                                    <label class="form-label small text-muted">Recurso</label>
-                                    <select class="form-select" id="recurso_selector">
-                                        <option value="" selected>-- Seleccionar --</option>
-                                        {% for r in recursos %}
-                                            <option value="{{ r.id }}" data-stock="{{ r.stock }}">
-                                                {{ r.nombre }} (Disp: {{ r.stock }})
-                                            </option>
-                                        {% empty %}
-                                            <option disabled>Sin inventario</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label small text-muted">Cantidad</label>
-                                    <input type="number" class="form-control" id="recurso_cantidad" min="1" placeholder="0">
-                                </div>
-                                <div class="col-md-3">
-                                    <button type="button" class="btn btn-success w-100" id="btnAgregarRecurso">
-                                        <i class="bi bi-plus-lg"></i> Agregar
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="table-responsive mt-3">
-                                <table class="table table-sm table-hover border" id="tabla_recursos">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Item</th>
-                                            <th class="text-center">Cant.</th>
-                                            <th class="text-end">Acción</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
-                            </div>
-                            <input type="hidden" name="recursos_seleccionados" id="recursos_input">
-                        </div>
-
-                        <div class="d-grid gap-2 mt-4">
-                            <button type="submit" class="btn btn-primary btn-lg shadow-sm" id="submitBtn">
-                                Confirmar Solicitud
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+          <span class="badge bg-secondary bg-opacity-10 text-secondary border px-2 rounded-pill">
+            {{ user.get_rol_display }}
+          </span>
         </div>
+      </div>
+    </div>
+  </div>
 
-        <!-- COLUMNA DERECHA -->
-        <div class="col-lg-4">
-            
-            <!-- Calendario Box -->
-            <div class="card shadow-sm border-0 mb-4 bg-dark text-white">
-                <div class="card-body text-center">
-                    <h5 class="card-title"><i class="bi bi-calendar3"></i> Disponibilidad</h5>
-                    <p class="small opacity-75">Revise los horarios antes de reservar.</p>
-                    <button type="button" class="btn btn-light w-100 fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#calendarModal">
-                        Ver Calendario
-                    </button>
-                </div>
-            </div>
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-info-circle-fill me-2"></i>{{ message|safe }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
 
-            <!-- Reglas Box -->
-            <div class="card shadow-sm border-0 rules-box sticky-top" style="top: 20px;">
-                <div class="card-body">
-                    <h6 class="fw-bold mb-3"><i class="bi bi-shield-check me-2"></i>Políticas</h6>
-                    <ul class="list-unstyled rules-list ps-1">
-                        <li><i class="bi bi-clock text-primary me-2"></i>Anticipación mínima: 24 horas.</li>
-                        <li><i class="bi bi-hourglass-split text-primary me-2"></i>Máximo 4 horas por bloque.</li>
-                        <li><i class="bi bi-people-fill text-primary me-2"></i>Entregue el espacio limpio.</li>
-                    </ul>
-                    <div class="alert alert-light border mt-3 mb-0 small text-muted">
-                        <i class="bi bi-info-circle me-1"></i> El incumplimiento de normas conlleva sanciones.
+  <div class="row g-4">
+
+    <!-- COLUMNA IZQUIERDA: FORMULARIO -->
+    <div class="col-lg-8">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body p-4">
+
+          <form method="post" id="reservaForm" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <!-- 1. SECCIÓN ESPACIOS -->
+            <h5 class="text-danger mb-3 pb-2 border-bottom border-danger border-opacity-25">
+              <i class="bi bi-grid-fill me-2"></i>Paso 1: Seleccione un Espacio
+            </h5>
+
+            <div class="row g-3 mb-4">
+              {% for espacio in espacios %}
+                <div class="col-6 col-md-4 col-xl-3">
+                  <div class="card h-100 space-card shadow-sm" id="card-espacio-{{ espacio.id }}"
+                       onclick="selectSpace('{{ espacio.id }}')">
+                    <div class="check-icon"><i class="bi bi-check-lg"></i></div>
+
+                    <div class="card-body p-2 text-center w-100">
+                      <div class="bg-light rounded-3 mb-2 d-flex align-items-center justify-content-center overflow-hidden position-relative"
+                           style="aspect-ratio: 1/1; border: 1px solid #f0f0f0;">
+                        {% if espacio.imagen %}
+                          <img src="{{ espacio.imagen.url }}" alt="{{ espacio.nombre }}" class="w-100 h-100 object-fit-cover">
+                        {% else %}
+                          <i class="bi bi-building text-secondary opacity-25" style="font-size: 2.5rem;"></i>
+                        {% endif %}
+                        <div class="position-absolute bottom-0 start-0 w-100 bg-dark bg-opacity-75 text-white py-1 small"
+                             style="font-size: 0.7rem;">
+                          Cap: {{ espacio.capacidad }}
+                        </div>
+                      </div>
+
+                      <h6 class="fw-bold text-dark small text-uppercase mb-0 text-truncate" title="{{ espacio.nombre }}">
+                        {{ espacio.nombre }}
+                      </h6>
                     </div>
+                  </div>
                 </div>
+              {% empty %}
+                <div class="col-12">
+                  <div class="alert alert-warning text-center">
+                    <i class="bi bi-exclamation-circle me-2"></i>No hay espacios activos disponibles.
+                  </div>
+                </div>
+              {% endfor %}
             </div>
 
+            <!-- Select oculto de Django (necesario para el POST) -->
+            <div class="d-none-input">
+              {{ form.espacio }}
+            </div>
+            {% if form.espacio.errors %}
+              <div class="alert alert-danger py-1 small text-center mt-2">
+                <i class="bi bi-exclamation-octagon me-1"></i>{{ form.espacio.errors.0 }}
+              </div>
+            {% endif %}
+
+            <!-- 2. SECCIÓN HORARIO -->
+            <h5 class="text-danger mb-3 pt-4 border-top border-danger border-opacity-25">
+              <i class="bi bi-clock me-2"></i>Paso 2: Defina el Horario
+            </h5>
+
+            <!-- ✅ YA NO renderizamos los inputs Django (reloj).
+                 ✅ En su lugar enviamos hidden inputs con los mismos names del ModelForm -->
+            <input type="hidden" name="hora_inicio" id="id_hora_inicio" value="{{ form.hora_inicio.value|default_if_none:'' }}">
+            <input type="hidden" name="hora_fin" id="id_hora_fin" value="{{ form.hora_fin.value|default_if_none:'' }}">
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label fw-bold small text-secondary">Fecha</label>
+                {{ form.fecha }}
+                <div id="date-error" class="text-danger small d-none mt-1">
+                  <i class="bi bi-x-circle me-1"></i>Mínimo 48 hrs de anticipación.
+                </div>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label fw-bold small text-secondary">Hora Inicio</label>
+                <select id="hora_inicio_select" class="form-select time-block-select">
+                  <option value="">-- Seleccionar --</option>
+                </select>
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label fw-bold small text-secondary">Hora Fin</label>
+                <select id="hora_fin_select" class="form-select time-block-select" disabled>
+                  <option value="">-- Seleccionar --</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="time-error" class="alert alert-danger py-2 d-none small shadow-sm"></div>
+
+            <div class="mb-3">
+              <label class="form-label fw-bold small text-secondary">Motivo de la Reserva</label>
+              {{ form.motivo }}
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label fw-bold small text-secondary">Adjunto (Opcional)</label>
+              {{ form.archivo_adjunto }}
+              <div class="form-text small">
+                <i class="bi bi-filetype-pdf"></i> Solo PDF o Excel. Máx 5MB.
+              </div>
+            </div>
+
+            <!-- 3. SECCIÓN RECURSOS (STOCK) -->
+            <h5 class="text-danger mb-3 pt-4 border-top border-danger border-opacity-25">
+              <i class="bi bi-box-seam-fill me-2"></i>Paso 3: Recursos Adicionales
+            </h5>
+
+            <div class="stock-control mb-4">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="small text-muted" id="stock-status-msg">
+                  <i class="bi bi-info-circle-fill me-1"></i> El stock se valida según el horario seleccionado.
+                </span>
+                <button type="button" class="btn btn-sm btn-outline-dark bg-white" onclick="fetchStock()">
+                  <i class="bi bi-arrow-repeat me-1"></i> Refrescar Stock
+                </button>
+              </div>
+
+              <div class="row g-2 align-items-end mb-3">
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-secondary">Recurso Disponible</label>
+                  <select class="form-select" id="recurso_selector" disabled>
+                    <option value="" selected>-- Seleccione Fecha y Horario --</option>
+                  </select>
+                </div>
+
+                <div class="col-md-3">
+                  <label class="form-label small fw-bold text-secondary">Cantidad</label>
+                  <input type="number" class="form-control" id="recurso_cantidad" min="1" placeholder="0">
+                </div>
+
+                <div class="col-md-3">
+                  <button type="button" class="btn btn-success w-100 text-white fw-bold" id="btnAgregarRecurso" disabled>
+                    <i class="bi bi-plus-lg me-1"></i> Agregar
+                  </button>
+                </div>
+              </div>
+
+              <div class="table-responsive border rounded bg-white">
+                <table class="table table-sm table-hover mb-0" id="tabla_recursos">
+                  <thead class="table-light">
+                    <tr>
+                      <th class="ps-3">Recurso</th>
+                      <th class="text-center">Cant.</th>
+                      <th class="text-end pe-3">Quitar</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+
+              <div id="hidden_inputs_container"></div>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="d-grid">
+              <button type="submit" class="btn btn-inacap btn-lg shadow" id="submitBtn">
+                <i class="bi bi-check2-circle me-2"></i>Confirmar Solicitud
+              </button>
+            </div>
+
+          </form>
         </div>
+      </div>
     </div>
+
+    <!-- COLUMNA DERECHA -->
+    <div class="col-lg-4">
+
+      <div class="card shadow-sm border-0 mb-4 bg-dark text-white overflow-hidden">
+        <div class="card-body text-center p-4">
+          <div class="mb-3 rounded-circle bg-white bg-opacity-10 d-inline-flex p-3">
+            <i class="bi bi-calendar-week fs-1 text-danger"></i>
+          </div>
+          <h5 class="card-title fw-bold">Consulta de Horarios</h5>
+          <p class="small opacity-75 mb-3">Verifique la disponibilidad de las salas antes de enviar su solicitud.</p>
+          <button type="button" class="btn btn-light w-100 fw-bold text-dark rounded-pill"
+                  data-bs-toggle="modal" data-bs-target="#calendarModal">
+            <i class="bi bi-eye me-2"></i>Ver Calendario
+          </button>
+        </div>
+      </div>
+
+      <div class="card shadow-sm border-0 rules-box sticky-top" style="top:20px;">
+        <div class="card-header bg-transparent border-0 pt-3 pb-0">
+          <h6 class="fw-bold mb-0 text-danger"><i class="bi bi-shield-exclamation me-2"></i>Normas de Uso</h6>
+        </div>
+        <div class="card-body">
+          <ul class="list-unstyled rules-list ps-1 mb-0">
+            <li><i class="bi bi-caret-right-fill text-danger me-2"></i>Anticipación mínima: <strong>48 horas</strong>.</li>
+            <li><i class="bi bi-caret-right-fill text-danger me-2"></i>Duración mínima: <strong>1 hora</strong>.</li>
+            <li><i class="bi bi-caret-right-fill text-danger me-2"></i>Espera entre reservas: <strong>1 hora</strong>.</li>
+            <li><i class="bi bi-caret-right-fill text-danger me-2"></i>El docente es responsable de entregar el espacio limpio y ordenado.</li>
+            <li><i class="bi bi-caret-right-fill text-danger me-2"></i>Horario de funcionamiento: <strong>08:30 a 21:00</strong>.</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
 </div>
 
 <!-- Modal Calendario -->
-<div class="modal fade" id="calendarModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title">Disponibilidad de Espacios</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div id="calendar"></div>
-            </div>
-        </div>
+<div class="modal fade" id="calendarModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-calendar3 me-2"></i>Disponibilidad de Espacios</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="calendar" class="p-3"></div>
+      </div>
     </div>
+  </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
-<script src="{% static 'js/crear_reserva.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 
 <script>
-    // Lógica para Selección Visual de Espacios
-    function selectSpace(id, cardElement) {
-        // 1. Actualizar el select oculto de Django
-        const select = document.getElementById('id_espacio'); 
-        if(select) {
-            select.value = id;
-            select.dispatchEvent(new Event('change'));
-        }
+/**
+ * Helpers horario (30 min)
+ */
+function timeToMinutes(t){
+  const [h,m] = t.split(":").map(Number);
+  return (h*60) + (m||0);
+}
+function minutesToTime(mins){
+  const h = String(Math.floor(mins/60)).padStart(2,"0");
+  const m = String(mins%60).padStart(2,"0");
+  return `${h}:${m}`;
+}
+function buildTimeOptions(selectEl, startMin, endMin, stepMin){
+  selectEl.innerHTML = '<option value="">-- Seleccionar --</option>';
+  for(let m=startMin; m<=endMin; m+=stepMin){
+    const t = minutesToTime(m);
+    const opt = document.createElement("option");
+    opt.value = t;
+    opt.textContent = t;
+    selectEl.appendChild(opt);
+  }
+}
 
-        // 2. Actualizar visualmente las tarjetas
-        document.querySelectorAll('.space-card').forEach(c => c.classList.remove('selected'));
-        cardElement.classList.add('selected');
+/**
+ * 1. INICIALIZACIÓN
+ */
+document.addEventListener('DOMContentLoaded', function() {
+  // Calendario
+  var calendarEl = document.getElementById('calendar');
+  var calendarModal = document.getElementById('calendarModal');
+  var calendar = null;
+
+  calendarModal.addEventListener('shown.bs.modal', function () {
+    if (!calendar) {
+      calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'timeGridWeek',
+        locale: 'es',
+        headerToolbar: {
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth,timeGridWeek'
+        },
+        events: "{% url 'api_reservas_calendario' %}",
+        slotMinTime: '08:30:00',
+        slotMaxTime: '21:00:00',
+        allDaySlot: false,
+        height: 'auto',
+        nowIndicator: true,
+        eventColor: '#D71920'
+      });
+      calendar.render();
+    } else {
+      calendar.render();
+    }
+  });
+
+  // Fecha mínima 48 horas
+  const fechaInput = document.getElementById('id_fecha');
+  if (fechaInput) {
+    const hoy = new Date();
+    hoy.setDate(hoy.getDate() + 2);
+
+    const yyyy = hoy.getFullYear();
+    const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+    const dd = String(hoy.getDate()).padStart(2, '0');
+    const minDate = `${yyyy}-${mm}-${dd}`;
+
+    fechaInput.setAttribute('min', minDate);
+
+    fechaInput.addEventListener('change', function() {
+      if (this.value && this.value < minDate) {
+        document.getElementById('date-error').classList.remove('d-none');
+        document.getElementById('date-error').innerText = `Fecha no permitida. Debe ser posterior al ${dd}/${mm}/${yyyy}.`;
+        this.value = '';
+        fetchStock();
+      } else {
+        document.getElementById('date-error').classList.add('d-none');
+      }
+      fetchStock();
+    });
+  }
+
+  // Horarios por bloques
+  initTimeBlockSelects();
+
+  // Espacio seleccionado si existe
+  const hiddenSelect = document.getElementById('id_espacio');
+  if (hiddenSelect && hiddenSelect.value) {
+    selectSpace(hiddenSelect.value);
+  }
+
+  // Cargar recursos previos si el backend los mandó (para no perder carrito en error)
+  {% if recursos_iniciales %}
+  try {
+    const recursosPrevios = {{ recursos_iniciales|safe }};
+    if (recursosPrevios.length > 0) {
+      carritoRecursos = recursosPrevios;
+      renderCarrito();
+    }
+  } catch (e) { console.error("Error cargando recursos previos", e); }
+  {% endif %}
+
+  fetchStock();
+});
+
+/**
+ * Inicializa selects de hora (30 min) y sincroniza inputs hidden.
+ * Horario: 08:30 a 21:00 - Duración mínima: 1 hora
+ */
+function initTimeBlockSelects(){
+  const hiSelect = document.getElementById("hora_inicio_select");
+  const hfSelect = document.getElementById("hora_fin_select");
+
+  const hiInput = document.getElementById("id_hora_inicio");
+  const hfInput = document.getElementById("id_hora_fin");
+
+  const btnAgregar = document.getElementById("btnAgregarRecurso");
+  const timeError = document.getElementById("time-error");
+
+  const START_MIN = timeToMinutes("08:30");
+  const END_MIN   = timeToMinutes("21:00");
+  const STEP      = 30;
+  const MIN_DUR   = 60;
+
+  buildTimeOptions(hiSelect, START_MIN, END_MIN - MIN_DUR, STEP);
+
+  // valores previos por error/edición (vienen en hidden)
+  const prevStart = hiInput && hiInput.value ? hiInput.value.slice(0,5) : "";
+  const prevEnd   = hfInput && hfInput.value ? hfInput.value.slice(0,5) : "";
+
+  if(prevStart) hiSelect.value = prevStart;
+
+  function validateTimes(){
+    if(!hiSelect.value || !hfSelect.value){
+      if(timeError) timeError.classList.add("d-none");
+      if(btnAgregar) btnAgregar.disabled = true;
+      return false;
+    }
+    const a = timeToMinutes(hiSelect.value);
+    const b = timeToMinutes(hfSelect.value);
+
+    if(b - a < MIN_DUR){
+      if(timeError){
+        timeError.classList.remove("d-none");
+        timeError.innerHTML = `<i class="bi bi-x-circle me-2"></i>La duración mínima es <b>1 hora</b>.`;
+      }
+      if(btnAgregar) btnAgregar.disabled = true;
+      return false;
+    }
+    if(timeError) timeError.classList.add("d-none");
+    if(btnAgregar) btnAgregar.disabled = false;
+    return true;
+  }
+
+  function repopulateEnd(){
+    hfSelect.disabled = true;
+    hfSelect.innerHTML = '<option value="">-- Seleccionar --</option>';
+
+    if(!hiSelect.value){
+      if(hiInput) hiInput.value = "";
+      if(hfInput) hfInput.value = "";
+      validateTimes();
+      return;
     }
 
-    // Ocultar el select original al cargar
-    document.addEventListener("DOMContentLoaded", function() {
-        const select = document.getElementById('id_espacio');
-        if(select) select.classList.add('visually-hidden-select');
+    if(hiInput) hiInput.value = hiSelect.value;
+
+    const startM = timeToMinutes(hiSelect.value);
+    const minEnd = startM + MIN_DUR;
+
+    buildTimeOptions(hfSelect, minEnd, END_MIN, STEP);
+    hfSelect.disabled = false;
+
+    // mantener fin previo si es válido
+    if(prevEnd && timeToMinutes(prevEnd) >= minEnd){
+      hfSelect.value = prevEnd;
+      if(hfInput) hfInput.value = prevEnd;
+    } else {
+      const def = minutesToTime(minEnd);
+      hfSelect.value = def;
+      if(hfInput) hfInput.value = def;
+    }
+
+    validateTimes();
+  }
+
+  hiSelect.addEventListener("change", () => {
+    repopulateEnd();
+    fetchStock();
+  });
+
+  hfSelect.addEventListener("change", () => {
+    if(hfInput) hfInput.value = hfSelect.value;
+    validateTimes();
+    fetchStock();
+  });
+
+  repopulateEnd();
+}
+
+/**
+ * Selección espacio
+ */
+function selectSpace(id) {
+  document.querySelectorAll('.space-card').forEach(c => c.classList.remove('selected'));
+  const card = document.getElementById('card-espacio-' + id);
+  if(card) card.classList.add('selected');
+
+  const select = document.getElementById('id_espacio');
+  if(select) select.value = id;
+}
+
+/**
+ * Stock
+ */
+let carritoRecursos = [];
+const fechaInput = document.getElementById('id_fecha');
+const horaInicio = document.getElementById('id_hora_inicio');
+const horaFin = document.getElementById('id_hora_fin');
+const recursoSelector = document.getElementById('recurso_selector');
+const recursoCantidad = document.getElementById('recurso_cantidad');
+const btnAgregarRecurso = document.getElementById('btnAgregarRecurso');
+const tablaCuerpo = document.querySelector('#tabla_recursos tbody');
+const hiddenContainer = document.getElementById('hidden_inputs_container');
+const stockMsg = document.getElementById('stock-status-msg');
+
+async function fetchStock() {
+  const f = fechaInput ? fechaInput.value : "";
+  const hi = horaInicio ? horaInicio.value : "";
+  const hf = horaFin ? horaFin.value : "";
+
+  const horarioCompleto = (f && hi && hf);
+
+  let url = "{% url 'api_stock_actual' %}";
+  if (horarioCompleto){
+    url += `?fecha=${encodeURIComponent(f)}&hora_inicio=${encodeURIComponent(hi)}&hora_fin=${encodeURIComponent(hf)}`;
+    if (stockMsg) stockMsg.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i> Stock validado para el horario seleccionado.';
+  } else {
+    if (stockMsg) stockMsg.innerHTML = '<i class="bi bi-info-circle"></i> Seleccione fecha y horario para validar stock real.';
+  }
+
+  recursoSelector.disabled = true;
+  recursoSelector.innerHTML = '<option>Consultando...</option>';
+
+  try {
+    const response = await fetch(url, { credentials: "same-origin" });
+    const data = await response.json();
+
+    recursoSelector.innerHTML = '<option value="">-- Seleccionar Recurso --</option>';
+    recursoSelector.disabled = false;
+
+    (data.recursos || []).forEach(r => {
+      const disponibleReal = Number(r.disponible ?? r.total ?? 0);
+      const totalFisico = Number(r.total ?? disponibleReal);
+
+      const option = document.createElement('option');
+      option.value = r.id;
+      option.setAttribute('data-max', disponibleReal);
+
+      if (disponibleReal > 0) {
+        option.text = `${r.nombre} (Disp: ${disponibleReal})`;
+      } else {
+        option.text = `${r.nombre} (Agotado / Total: ${totalFisico})`;
+        option.disabled = true;
+        option.classList.add('text-muted');
+      }
+
+      recursoSelector.appendChild(option);
     });
+
+  } catch (error) {
+    console.error("Error stock:", error);
+    recursoSelector.innerHTML = '<option>Error de conexión</option>';
+    recursoSelector.disabled = true;
+  }
+}
+
+btnAgregarRecurso.addEventListener('click', () => {
+  const selectedOption = recursoSelector.options[recursoSelector.selectedIndex];
+  if (!selectedOption || !selectedOption.value) return;
+
+  const id = selectedOption.value;
+  const nombre = selectedOption.text.split('(')[0].trim();
+  const maxStock = parseInt(selectedOption.getAttribute('data-max'));
+  const cantidad = parseInt(recursoCantidad.value);
+
+  if (!cantidad || cantidad <= 0) {
+    Swal.fire('Atención', 'Ingrese una cantidad válida.', 'warning');
+    return;
+  }
+  if (cantidad > maxStock) {
+    Swal.fire('Stock Insuficiente', `Solo hay ${maxStock} unidades disponibles.`, 'error');
+    return;
+  }
+
+  const existente = carritoRecursos.find(i => String(i.id) === String(id));
+  if (existente) {
+    Swal.fire('Duplicado', 'Ya agregaste este recurso.', 'info');
+    return;
+  }
+
+  carritoRecursos.push({ id: String(id), nombre, cantidad });
+  renderCarrito();
+  recursoCantidad.value = "";
+  recursoSelector.value = "";
+});
+
+function renderCarrito() {
+  tablaCuerpo.innerHTML = "";
+  hiddenContainer.innerHTML = "";
+
+  carritoRecursos.forEach((item, index) => {
+    const row = `
+      <tr>
+        <td>${item.nombre}</td>
+        <td class="text-center">${item.cantidad}</td>
+        <td class="text-end">
+          <button type="button" class="btn btn-sm btn-outline-danger border-0" onclick="eliminarDelCarrito(${index})">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+    tablaCuerpo.insertAdjacentHTML('beforeend', row);
+
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = `recurso_${item.id}`;
+    input.value = item.cantidad;
+    hiddenContainer.appendChild(input);
+  });
+}
+
+window.eliminarDelCarrito = function(index) {
+  carritoRecursos.splice(index, 1);
+  renderCarrito();
+};
 </script>
 {% endblock %}

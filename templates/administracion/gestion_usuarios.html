@@ -3,6 +3,13 @@
 {% block title %}Control de Usuarios{% endblock %}
 
 {% block content %}
+<style>
+    .cursor-pointer { cursor: pointer; }
+    .sort-icon { font-size: 0.8em; margin-left: 5px; color: #999; }
+    .sortable:hover { background-color: #f2f2f2; }
+    .sortable:hover .sort-icon { color: #333; }
+</style>
+
 <div class="container-fluid py-4">
 
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
@@ -10,8 +17,7 @@
             <i class="bi bi-people me-2"></i> Control de Usuarios (RBAC)
         </h1>
         <div class="btn-toolbar mb-2 mb-md-0">
-            <!-- CORRECCIÓN 1: Usar 'crear_usuario' sin namespace -->
-            <a href="{% url 'crear_usuario' %}" class="btn btn-sm btn-danger me-2">
+            <a href="{% url 'crear_usuario' %}" class="btn btn-sm btn-danger me-2" style="background-color: #D71920; border-color: #D71920;">
                 <i class="bi bi-person-plus"></i> Crear Nuevo Usuario
             </a>
         </div>
@@ -27,97 +33,245 @@
     {% endfor %}
     {% endif %}
 
+    <!-- BARRA DE BÚSQUEDA -->
+    <div class="card border-0 shadow-sm mb-4 bg-light">
+        <div class="card-body py-3">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-12">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                        <input type="text" id="searchInput" class="form-control border-start-0 ps-0" placeholder="Buscar por nombre, rut, área, rol...">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Tabla de Usuarios -->
     <div class="card border-0 shadow-sm">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0" id="usersTable">
                 <thead class="bg-light">
                     <tr>
-                        <th scope="col" class="ps-4">Email / Nombre</th>
-                        <th scope="col">Rol Actual</th>
-                        <th scope="col">Estado</th>
+                        <!-- ENCABEZADOS ORDENABLES -->
+                        <th scope="col" class="ps-4 sortable cursor-pointer" data-sort="nombre">
+                            Email / Nombre / RUT <i class="bi bi-arrow-down-up sort-icon"></i>
+                        </th>
+                        <!-- CAMBIO: Ordenar por Área en lugar de Carrera -->
+                        <th scope="col" class="sortable cursor-pointer" data-sort="area">
+                            Área / Información Académica <i class="bi bi-arrow-down-up sort-icon"></i>
+                        </th>
+                        <th scope="col" class="sortable cursor-pointer" data-sort="rol">
+                            Rol Actual <i class="bi bi-arrow-down-up sort-icon"></i>
+                        </th>
+                        <th scope="col" class="sortable cursor-pointer" data-sort="estado">
+                            Estado <i class="bi bi-arrow-down-up sort-icon"></i>
+                        </th>
                         <th scope="col" class="text-end pe-4">Acciones</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="usersTableBody">
                     {% for user_target in users %}
-                    <tr>
+                    <!-- CAMBIO: data-area en lugar de data-carrera para el filtro -->
+                    <tr class="user-row" 
+                        data-nombre="{{ user_target.get_full_name|lower }} {{ user_target.email|lower }} {{ user_target.rut|default:''|lower }}" 
+                        data-area="{{ user_target.nombre_area|lower }}"
+                        data-estado="{% if user_target.is_active %}1{% else %}0{% endif %}"
+                        data-rol="{{ user_target.rol }}">
+                        
                         <td class="ps-4">
-                            <div class="fw-bold">{{ user_target.email }}</div>
+                            <div class="fw-bold" style="color: #333;">{{ user_target.email }}</div>
                             <div class="small text-muted">{{ user_target.get_full_name|default:"Sin Nombre" }}</div>
+                            <div class="small text-secondary mt-1"><i class="bi bi-person-vcard me-1"></i>{{ user_target.rut|default:"--" }}</div>
                         </td>
 
-                        <!-- Rol actual -->
                         <td>
-                            {% if user_target.rol == 'ADMIN' %}
-                            <span class="badge bg-danger">ADMINISTRADOR</span>
-                            {% elif user_target.rol == 'COORDINADOR' %}
-                            <span class="badge bg-info text-dark">COORDINADOR</span>
+                            <!-- Lógica visual: Mostrar Carrera si existe, sino mostrar Cargo + Área -->
+                            {% if user_target.carrera %}
+                                <div class="fw-semibold text-dark" style="font-size: 0.9rem;">
+                                    {{ user_target.carrera.nombre }}
+                                </div>
+                                <div class="small" style="color: #D71920; font-weight: 600;">
+                                    <i class="bi bi-building me-1"></i>{{ user_target.carrera.area.nombre }}
+                                </div>
+                            {% elif user_target.area %}
+                                <div class="fw-semibold text-dark" style="font-size: 0.9rem;">
+                                    {{ user_target.get_tipo_solicitante_display }}
+                                </div>
+                                <div class="small" style="color: #D71920; font-weight: 600;">
+                                    <i class="bi bi-building me-1"></i>{{ user_target.area.nombre }}
+                                </div>
                             {% else %}
-                            <span class="badge bg-secondary">MANTENIMIENTO</span>
+                                <span class="badge bg-light text-secondary border">Sin Asignación</span>
                             {% endif %}
                         </td>
 
-                        <!-- Estado -->
+                        <td>
+                            {% if user_target.rol == 'ADMIN' %}
+                                <span class="badge bg-danger" style="background-color: #D71920 !important;">ADMINISTRADOR</span>
+                            {% elif user_target.rol == 'SOLICITANTE' %}
+                                <span class="badge bg-primary">SOLICITANTE</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ user_target.get_rol_display }}</span>
+                            {% endif %}
+                        </td>
+
                         <td>
                             {% if user_target.is_active %}
-                            <span class="badge bg-success">Habilitado</span>
+                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Habilitado</span>
                             {% else %}
-                            <span class="badge bg-dark">BLOQUEADO</span>
+                                <span class="badge bg-dark"><i class="bi bi-ban me-1"></i>Bloqueado</span>
                             {% endif %}
                         </td>
 
                         <td class="text-end pe-4">
+                            {% if request.user.id != user_target.id %}
+                                <!-- BOTÓN DE EDITAR (NUEVO) -->
+                                <a href="{% url 'editar_usuario' user_target.id %}" class="btn btn-sm btn-outline-secondary me-1" title="Editar Usuario">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
 
-                            <!-- Cambio de Rol -->
-                            <div class="dropdown d-inline-block me-2">
-                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
-                                    data-bs-toggle="dropdown">
-                                    Cambiar Rol
-                                </button>
-                                <ul class="dropdown-menu">
-                                    {% for rol_key, rol_name in user_target.ROLES %}
-                                    {% if rol_key != user_target.rol %}
-                                    <li>
-                                        <!-- CORRECCIÓN 2: Usar 'gestionar_rol_estado' en lugar de 'editar_rol' -->
-                                        <form method="post"
-                                            action="{% url 'gestionar_rol_estado' user_target.id %}"
-                                            class="d-inline">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="rol">
-                                            <input type="hidden" name="value" value="{{ rol_key }}">
-                                            <button type="submit" class="dropdown-item">Asignar {{ rol_name }}</button>
-                                        </form>
-                                    </li>
+                                <form method="post" action="{% url 'gestionar_rol_estado' user_target.id %}" class="d-inline me-1">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="rol">
+                                    {% if user_target.rol == 'ADMIN' %}
+                                        <input type="hidden" name="value" value="SOLICITANTE">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary" title="Degradar a Solicitante" onclick="return confirm('¿Quitar permisos de administrador a {{ user_target.email }}?');">
+                                            <i class="bi bi-person-badge"></i>
+                                        </button>
+                                    {% else %}
+                                        <input type="hidden" name="value" value="ADMIN">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Ascender a Administrador" onclick="return confirm('¿Dar permisos de administrador a {{ user_target.email }}?');" style="border-color: #D71920; color: #D71920;">
+                                            <i class="bi bi-shield-lock"></i>
+                                        </button>
                                     {% endif %}
-                                    {% endfor %}
-                                </ul>
-                            </div>
+                                </form>
 
-                            <!-- Bloquear / Habilitar -->
-                            <!-- CORRECCIÓN 3: Usar 'gestionar_rol_estado' -->
-                            <form method="post" action="{% url 'gestionar_rol_estado' user_target.id %}"
-                                class="d-inline">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="toggle_active">
-
-                                {% if user_target.is_active %}
-                                <button type="submit" class="btn btn-sm btn-warning" title="Bloquear Acceso">
-                                    <i class="bi bi-lock"></i> Bloquear
-                                </button>
-                                {% else %}
-                                <button type="submit" class="btn btn-sm btn-success" title="Habilitar Acceso">
-                                    <i class="bi bi-unlock"></i> Habilitar
-                                </button>
-                                {% endif %}
-                            </form>
-
+                                <form method="post" action="{% url 'gestionar_rol_estado' user_target.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="toggle_active">
+                                    {% if user_target.is_active %}
+                                        <button type="submit" class="btn btn-sm btn-warning text-dark" title="Bloquear Acceso" onclick="return confirm('¿Bloquear acceso a {{ user_target.email }}?');">
+                                            <i class="bi bi-lock"></i>
+                                        </button>
+                                    {% else %}
+                                        <button type="submit" class="btn btn-sm btn-success" title="Habilitar Acceso">
+                                            <i class="bi bi-unlock"></i>
+                                        </button>
+                                    {% endif %}
+                                </form>
+                            {% else %}
+                                <span class="text-muted small fst-italic">Tu Usuario</span>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
+                    <!-- Mensaje cuando no hay resultados -->
+                    <tr id="noResultsRow" style="display: none;">
+                        <td colspan="5" class="text-center py-4 text-muted">
+                            <i class="bi bi-search me-2"></i>No se encontraron usuarios que coincidan con la búsqueda.
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const tableBody = document.getElementById('usersTableBody');
+    const noResultsRow = document.getElementById('noResultsRow');
+    const sortableHeaders = document.querySelectorAll('.sortable');
+    
+    let rows = Array.from(document.querySelectorAll('.user-row'));
+    let currentSort = { column: null, direction: 'asc' };
+
+    // --- FUNCIÓN DE BÚSQUEDA ---
+    searchInput.addEventListener('keyup', function() {
+        const query = this.value.toLowerCase().trim();
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const searchData = [
+                row.getAttribute('data-nombre'),
+                row.getAttribute('data-rut'),
+                row.getAttribute('data-area'), // Ahora busca por área
+                row.getAttribute('data-rol')
+            ].join(' '); // Combina todo para buscar
+
+            if (searchData.includes(query)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        noResultsRow.style.display = visibleCount === 0 ? '' : 'none';
+    });
+
+    // --- FUNCIÓN DE ORDENAMIENTO ---
+    sortableHeaders.forEach(header => {
+        header.addEventListener('click', () => {
+            const column = header.getAttribute('data-sort');
+            
+            // Alternar dirección si es la misma columna, sino resetear a asc
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+
+            // Actualizar iconos visuales
+            updateIcons(header);
+
+            // Ordenar filas
+            rows.sort((a, b) => {
+                let valA = a.getAttribute('data-' + column);
+                let valB = b.getAttribute('data-' + column);
+
+                // Manejo de valores numéricos o strings
+                if (column === 'estado') {
+                    // Para estado (1 o 0), tratamos como números
+                    return currentSort.direction === 'asc' ? valA - valB : valB - valA;
+                }
+
+                // Para texto (localeCompare maneja bien acentos)
+                if (currentSort.direction === 'asc') {
+                    return valA.localeCompare(valB);
+                } else {
+                    return valB.localeCompare(valA);
+                }
+            });
+
+            // Re-insertar filas en el DOM
+            rows.forEach(row => tableBody.appendChild(row));
+            tableBody.appendChild(noResultsRow); // Mantener fila vacía al final
+        });
+    });
+
+    function updateIcons(activeHeader) {
+        // Resetear todos los iconos a "neutro" (flecha arriba/abajo tenue)
+        sortableHeaders.forEach(th => {
+            const icon = th.querySelector('.sort-icon');
+            icon.className = 'bi bi-arrow-down-up sort-icon';
+            icon.style.color = '#999';
+        });
+
+        // Poner el icono correcto en el header activo
+        const activeIcon = activeHeader.querySelector('.sort-icon');
+        if (currentSort.direction === 'asc') {
+            activeIcon.className = 'bi bi-arrow-up sort-icon';
+        } else {
+            activeIcon.className = 'bi bi-arrow-down sort-icon';
+        }
+        activeIcon.style.color = '#333'; // Resaltar color
+    }
+});
+</script>
 {% endblock %}

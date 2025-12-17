@@ -1,211 +1,251 @@
-document.addEventListener('DOMContentLoaded', function() {
-    
-    // ==========================================
-    // 1. CONFIGURACIÓN DEL CALENDARIO (CONECTADO A BD)
-    // ==========================================
-    var calendarEl = document.getElementById('calendar');
-    
-    if (calendarEl) {
-        var calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'timeGridWeek',
-            locale: 'es',
-            headerToolbar: {
-                left: 'prev,next today',
-                center: 'title',
-                right: 'dayGridMonth,timeGridWeek'
-            },
-            // Horario laboral (visual)
-            businessHours: {
-                daysOfWeek: [1, 2, 3, 4, 5], // Lunes a Viernes
-                startTime: '08:00',
-                endTime: '20:00',
-            },
-            // Rango de horas visible
-            slotMinTime: "08:00:00",
-            slotMaxTime: "21:00:00",
-            
-            // --- AQUÍ ESTÁ LA MAGIA ---
-            // Conectamos el calendario a la URL que creamos en Django
-            events: '/reservas/api/reservas-calendario/',
-            
-            // Si falla la carga
-            failure: function() {
-                Swal.fire('Error', 'No se pudieron cargar los eventos del calendario.', 'error');
-            },
+document.addEventListener('DOMContentLoaded', function () {
+  console.log("Reservas: JS cargado ✅");
 
-            eventClick: function(info) {
-                Swal.fire({
-                    title: info.event.title,
-                    text: 'Inicio: ' + info.event.start.toLocaleTimeString() + ' - Fin: ' + info.event.end.toLocaleTimeString(),
-                    icon: 'info'
-                });
-            }
+  // ============================
+  // Helpers DOM
+  // ============================
+  const $ = (id) => document.getElementById(id);
+
+  // APIs desde template (evita hardcode)
+  const API_CALENDARIO = window.API_CALENDARIO || '/reservas/api/reservas-calendario/';
+  const API_STOCK = window.API_STOCK || '/reservas/api/consultar-stock/';
+
+  // Si estamos editando, el template puede setear esto:
+  const RESERVA_ID = window.RESERVA_ID || null;
+
+  // ============================
+  // 1) CALENDARIO (FullCalendar)
+  // ============================
+  const calendarEl = $('calendar');
+  let calendarInstance = null;
+
+  if (calendarEl && window.FullCalendar) {
+    calendarInstance = new FullCalendar.Calendar(calendarEl, {
+      initialView: 'timeGridWeek',
+      locale: 'es',
+      headerToolbar: {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'dayGridMonth,timeGridWeek'
+      },
+      businessHours: {
+        daysOfWeek: [1, 2, 3, 4, 5],
+        startTime: '08:00',
+        endTime: '22:00',
+      },
+      slotMinTime: "08:00:00",
+      slotMaxTime: "22:00:00",
+      height: 'auto',
+      events: API_CALENDARIO,
+      eventClick: function (info) {
+        if (window.Swal) {
+          Swal.fire({
+            title: 'Ocupado',
+            text:
+              info.event.title + " | " +
+              info.event.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) +
+              " - " +
+              info.event.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            icon: 'warning',
+            confirmButtonColor: '#D71920'
+          });
+        }
+      }
+    });
+
+    // Render SOLO cuando el modal está visible
+    const calendarModal = $('calendarModal');
+    if (calendarModal) {
+      calendarModal.addEventListener('shown.bs.modal', function () {
+        calendarInstance.render();
+        calendarInstance.updateSize();
+      });
+    }
+  } else {
+    console.warn("Calendario: no se encontró #calendar o FullCalendar no cargó.");
+  }
+
+  // ============================
+  // 2) Selección visual de espacio
+  // ============================
+  const selectEspacio = $('id_espacio');
+  if (selectEspacio) selectEspacio.classList.add('visually-hidden-select');
+
+  window.selectSpace = function (id, cardElement) {
+    if (selectEspacio) {
+      selectEspacio.value = id;
+      selectEspacio.dispatchEvent(new Event('change'));
+    }
+    document.querySelectorAll('.space-card').forEach(c => c.classList.remove('selected'));
+    if (cardElement) cardElement.classList.add('selected');
+  };
+
+  // ============================
+  // 3) Recursos/Stock (carrito)
+  // ============================
+  window.recursosList = [];
+
+  // Cargar recursos preexistentes si el template los dejó
+  const dataScript = $('data-recursos');
+  if (dataScript) {
+    try {
+      const datos = JSON.parse(dataScript.textContent);
+      if (Array.isArray(datos)) {
+        window.recursosList = datos;
+        actualizarTablaVisual();
+      }
+    } catch (e) {
+      console.error("Error leyendo data-recursos:", e);
+    }
+  }
+
+  const btnAgregar = $('btnAgregarRecurso');
+  const stockAlert = $('stock-alert');
+
+  if (btnAgregar) {
+    btnAgregar.addEventListener('click', async function () {
+      const selector = $('recurso_selector');
+      const cantidadInput = $('recurso_cantidad');
+
+      const idRecurso = selector?.value;
+      const cantidad = parseInt(cantidadInput?.value);
+
+      const fecha = $('id_fecha')?.value;
+      const horaIni = $('id_hora_inicio')?.value;
+      const horaFin = $('id_hora_fin')?.value;
+
+      if (!idRecurso) {
+        window.Swal ? Swal.fire('Falta info', 'Seleccione un recurso.', 'warning') : alert("Seleccione un recurso.");
+        return;
+      }
+      if (!fecha || !horaIni || !horaFin) {
+        window.Swal ? Swal.fire('Horario requerido', 'Seleccione fecha y horas primero.', 'info') : alert("Seleccione fecha y horas primero.");
+        return;
+      }
+      if (isNaN(cantidad) || cantidad <= 0) {
+        window.Swal ? Swal.fire('Cantidad inválida', 'Ingrese una cantidad mayor a 0.', 'warning') : alert("Cantidad inválida.");
+        return;
+      }
+
+      // UI loading
+      const btnText = btnAgregar.innerHTML;
+      btnAgregar.disabled = true;
+      btnAgregar.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Verificando...';
+      if (stockAlert) stockAlert.classList.add('d-none');
+
+      try {
+        const params = new URLSearchParams({
+          recurso_id: idRecurso,
+          fecha: fecha,
+          hora_inicio: horaIni,
+          hora_fin: horaFin
         });
 
-        // FIX: Renderizar calendario correctamente cuando el modal se abre
-        var calendarModal = document.getElementById('calendarModal');
-        if (calendarModal) {
-            calendarModal.addEventListener('shown.bs.modal', function () {
-                calendar.render();
-                calendar.updateSize(); // Forza el ajuste de tamaño
-            });
+        // Si estamos editando, mandamos reserva_id para que backend pueda excluirla si corresponde
+        if (RESERVA_ID) params.append('reserva_id', RESERVA_ID);
+
+        const url = `${API_STOCK}?${params.toString()}`;
+
+        const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        if (!res.ok) throw new Error("API stock error");
+        const data = await res.json();
+
+        if (data.error) {
+          window.Swal ? Swal.fire('Error', data.error, 'error') : alert(data.error);
+          return;
         }
-    }
 
-    // ==========================================
-    // 2. LÓGICA DE RECURSOS (CARRITO DE COMPRAS)
-    // ==========================================
-    
-    window.recursosList = [];
+        const stockReal = parseInt(data.stock_real);
 
-    // A. DETECCIÓN AUTOMÁTICA (PARA EDITAR)
-    const dataScript = document.getElementById('data-recursos');
-    if (dataScript) {
-        try {
-            const datosCargados = JSON.parse(dataScript.textContent);
-            if (Array.isArray(datosCargados) && datosCargados.length > 0) {
-                window.recursosList = datosCargados;
-                window.actualizarTabla();
-            }
-        } catch (e) {
-            console.error("Error al leer datos JSON:", e);
+        // Cantidad que ya está en carrito
+        const existente = window.recursosList.find(r => r.id === idRecurso);
+        const cantidadEnCarrito = existente ? existente.cantidad : 0;
+        const total = cantidad + cantidadEnCarrito;
+
+        if (total > stockReal) {
+          if (stockAlert) {
+            stockAlert.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i> <strong>Stock insuficiente.</strong> Disponible: ${stockReal}. (Ya tienes ${cantidadEnCarrito})`;
+            stockAlert.classList.remove('d-none');
+          }
+          return;
         }
-    }
 
-    // B. BOTÓN AGREGAR (CON VALIDACIÓN DE STOCK EN TIEMPO REAL)
-    const btnAgregar = document.getElementById('btnAgregarRecurso');
-    if (btnAgregar) {
-        btnAgregar.addEventListener('click', function() {
-            const selector = document.getElementById('recurso_selector');
-            const cantidadInput = document.getElementById('recurso_cantidad');
-            const stockAlert = document.getElementById('stock-alert');
-            
-            // Datos del formulario para validar disponibilidad específica
-            const idRecurso = selector.value;
-            const fechaVal = document.getElementById('id_fecha')?.value;
-            const horaIniVal = document.getElementById('id_hora_inicio')?.value;
-            const horaFinVal = document.getElementById('id_hora_fin')?.value;
+        // Agregar / acumular
+        const nombreRecurso = selector.options[selector.selectedIndex].text.split('(')[0].trim();
 
-            if (!idRecurso) {
-                Swal.fire('Atención', 'Seleccione un recurso.', 'warning');
-                return;
-            }
-            
-            if (!fechaVal || !horaIniVal || !horaFinVal) {
-                Swal.fire('Faltan Datos', 'Primero selecciona fecha y horas para verificar el stock disponible en ese bloque.', 'info');
-                return;
-            }
-
-            const cantidad = parseInt(cantidadInput.value);
-            if (isNaN(cantidad) || cantidad <= 0) return;
-
-            // Feedback visual de carga
-            const btnText = btnAgregar.innerHTML;
-            btnAgregar.disabled = true;
-            btnAgregar.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-
-            // CONSULTA AL BACKEND
-            const url = `/reservas/api/consultar-stock/?recurso_id=${idRecurso}&fecha=${fechaVal}&hora_inicio=${horaIniVal}&hora_fin=${horaFinVal}`;
-
-            fetch(url)
-                .then(res => res.json())
-                .then(data => {
-                    btnAgregar.disabled = false;
-                    btnAgregar.innerHTML = btnText;
-
-                    if (data.error) {
-                        Swal.fire('Error', data.error, 'error');
-                        return;
-                    }
-
-                    const stockReal = data.stock_real;
-                    
-                    // Verificar si ya agregué este recurso a mi lista local
-                    const existente = window.recursosList.find(r => r.id === idRecurso);
-                    const cantidadPrevia = existente ? existente.cantidad : 0;
-                    
-                    if ((cantidad + cantidadPrevia) > stockReal) {
-                        stockAlert.innerHTML = `<strong>Stock insuficiente.</strong> Solo quedan ${stockReal} unidades disponibles en ese horario.`;
-                        stockAlert.classList.remove('d-none');
-                        return;
-                    } else {
-                        stockAlert.classList.add('d-none');
-                    }
-
-                    // Agregar
-                    const nombreRecurso = selector.options[selector.selectedIndex].text.split('(')[0].trim();
-                    
-                    if (existente) {
-                        existente.cantidad += cantidad;
-                    } else {
-                        window.recursosList.push({ id: idRecurso, nombre: nombreRecurso, cantidad: cantidad });
-                    }
-
-                    window.actualizarTabla();
-                    selector.value = "";
-                    cantidadInput.value = "";
-                })
-                .catch(err => {
-                    console.error(err);
-                    btnAgregar.disabled = false;
-                    btnAgregar.innerHTML = btnText;
-                });
-        });
-    }
-
-    // C. FUNCIONES DE TABLA
-    window.actualizarTabla = function() {
-        const tbody = document.querySelector('#tabla_recursos tbody');
-        const inputHidden = document.getElementById('recursos_input');
-        
-        if (tbody) {
-            tbody.innerHTML = "";
-            window.recursosList.forEach((r, i) => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${r.nombre}</td>
-                        <td class="text-center">${r.cantidad}</td>
-                        <td class="text-end">
-                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="window.eliminarRecurso(${i})">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </td>
-                    </tr>`;
-            });
+        if (existente) {
+          existente.cantidad += cantidad;
+        } else {
+          window.recursosList.push({ id: idRecurso, nombre: nombreRecurso, cantidad });
         }
-        if (inputHidden) {
-            inputHidden.value = JSON.stringify(window.recursosList);
+
+        actualizarTablaVisual();
+        selector.value = "";
+        cantidadInput.value = "";
+
+      } catch (err) {
+        console.error(err);
+        window.Swal ? Swal.fire('Error', 'No se pudo verificar el stock.', 'error') : alert("No se pudo verificar stock.");
+      } finally {
+        btnAgregar.disabled = false;
+        btnAgregar.innerHTML = btnText;
+      }
+    });
+  }
+
+  function actualizarTablaVisual() {
+    const tbody = document.querySelector('#tabla_recursos tbody');
+    const inputHidden = $('recursos_input');
+
+    if (tbody) {
+      tbody.innerHTML = "";
+      window.recursosList.forEach((r, i) => {
+        tbody.innerHTML += `
+          <tr>
+            <td>${r.nombre}</td>
+            <td class="text-center">${r.cantidad}</td>
+            <td class="text-end">
+              <button type="button" class="btn btn-sm btn-outline-danger" onclick="eliminarRecurso(${i})">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    if (inputHidden) {
+      inputHidden.value = JSON.stringify(window.recursosList);
+    }
+  }
+
+  window.eliminarRecurso = function (index) {
+    window.recursosList.splice(index, 1);
+    actualizarTablaVisual();
+  };
+
+  // ============================
+  // 4) Validaciones visuales (horas)
+  // ============================
+  const horaInicio = $('id_hora_inicio');
+  const horaFin = $('id_hora_fin');
+  const timeError = $('time-error');
+
+  function validarHoras() {
+    if (horaInicio?.value && horaFin?.value) {
+      if (horaFin.value <= horaInicio.value) {
+        if (timeError) {
+          timeError.innerText = "La hora de término debe ser posterior a la de inicio.";
+          timeError.classList.remove('d-none');
         }
+      } else {
+        if (timeError) timeError.classList.add('d-none');
+      }
     }
+  }
 
-    window.eliminarRecurso = function(index) {
-        window.recursosList.splice(index, 1);
-        window.actualizarTabla();
-    };
-
-    // ==========================================
-    // 3. VALIDACIÓN DE ARCHIVOS (Anti-Error OneDrive)
-    // ==========================================
-    const fileInput = document.getElementById('id_archivo_adjunto'); 
-
-    if (fileInput) {
-        fileInput.addEventListener('change', function() {
-            const file = this.files[0];
-            
-            if (file) {
-                if (file.size === 0) {
-                    Swal.fire('Archivo no válido', 'El archivo está vacío o es un acceso directo de nube no descargado.', 'warning');
-                    this.value = '';
-                    return;
-                }
-                // Test de lectura
-                const reader = new FileReader();
-                reader.onerror = function() {
-                    Swal.fire('Error de Lectura', 'No se puede leer el archivo. Asegúrese de que esté descargado en su PC (check verde) y no en la nube.', 'error');
-                    fileInput.value = '';
-                };
-                reader.readAsArrayBuffer(file.slice(0, 1));
-            }
-        });
-    }
+  if (horaInicio && horaFin) {
+    horaInicio.addEventListener('change', validarHoras);
+    horaFin.addEventListener('change', validarHoras);
+  }
 });

@@ -1,228 +1,153 @@
 {% extends 'base.html' %}
-{% load static %}
-
-{% block title %}Dashboard Admin{% endblock %}
 
 {% block content %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <style>
-    body { background-color: #F5F7FB !important; }
-    .dashboard-card {
-        background: #fff;
-        border: none;
-        border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-        transition: transform 0.2s;
-        height: 100%;
-        overflow: hidden;
-        cursor: default;
-    }
-    .dashboard-card:hover { transform: translateY(-3px); }
-    .icon-circle { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
-    .text-label { font-size: 0.85rem; color: #8898aa; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-    .text-value { font-size: 1.75rem; font-weight: 700; color: #32325d; }
-    .bg-gradient-primary { background: linear-gradient(87deg, #5e72e4 0, #825ee4 100%) !important; }
-    .bg-gradient-danger { background: linear-gradient(87deg, #f5365c 0, #f56036 100%) !important; }
-    .bg-gradient-success { background: linear-gradient(87deg, #2dce89 0, #2dcecc 100%) !important; }
-    .bg-gradient-info { background: linear-gradient(87deg, #11cdef 0, #1171ef 100%) !important; }
-    .btn, .stretched-link, .clickable-item { cursor: pointer !important; }
-    .card-link { text-decoration: none; cursor: pointer; display: inline-block; margin-top: 0.75rem; }
-    .quick-access-item { background: rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; margin-bottom: 12px; cursor: default; }
-    
-    /* Estilo para miniatura de espacio en tabla */
-    .space-thumb {
-        width: 40px;
-        height: 40px;
-        object-fit: cover;
-        border-radius: 8px;
-        border: 1px solid #dee2e6;
-    }
+    .text-inacap { color: #D71920; }
+    .bg-inacap { background-color: #D71920; color: white; }
+    .hover-card { transition: transform 0.2s, box-shadow 0.2s; border: none; }
+    .hover-card:hover { transform: translateY(-5px); box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important; }
+    .card-icon-bg { width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 50%; margin: 0 auto 0.5rem; }
+    .chart-container { position: relative; height: 250px; width: 100%; }
 </style>
 
-<div class="container-fluid py-4">
-    
-    <div class="d-flex justify-content-between align-items-center mb-5">
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h6 class="text-uppercase text-muted mb-1 small fw-bold">Vista General</h6>
-            <h2 class="mb-0 fw-bold text-dark">Dashboard Administrativo</h2>
+            <h2 class="mb-0" style="color: #333;">Panel de Control</h2>
+            <span class="text-muted small">Resumen de operaciones y estadísticas</span>
         </div>
-        <div class="d-flex gap-2">
-            <a href="{% url 'export_reservas_excel' %}" class="btn btn-success shadow-sm text-white border-0" style="background-color: #1D6F42;">
-                <i class="bi bi-file-earmark-excel me-2"></i>Descargar Reporte Excel
+        <!-- BOTÓN EXPORTAR EXCEL AGREGADO -->
+        <div>
+            <a href="{% url 'export_reservas_excel' %}" class="btn btn-success shadow-sm">
+                <i class="bi bi-file-earmark-excel me-2"></i>Descargar Reporte General
             </a>
         </div>
     </div>
 
-    <!-- STATS CARDS -->
-    <div class="row g-4 mb-5">
-        <div class="col-xl-3 col-md-6">
-            <div class="dashboard-card p-4">
-                <div class="d-flex justify-content-between">
-                    <div><span class="text-label d-block mb-1">Pendientes</span><span class="text-value">{{ pending_count }}</span></div>
-                    <div class="icon-circle bg-gradient-danger text-white shadow"><i class="bi bi-hourglass-split"></i></div>
+    <!-- FILA 1: KPIs (Resumen) -->
+    <div class="row mb-4 g-3">
+        <div class="col-md-3">
+            <div class="card text-dark bg-warning bg-opacity-10 border-warning shadow-sm h-100">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-uppercase text-muted small fw-bold">Pendientes</h6>
+                        <h2 class="mb-0 fw-bold text-warning-emphasis">{{ pending_count }}</h2>
+                    </div>
+                    <i class="bi bi-clock-history fs-1 text-warning opacity-50"></i>
                 </div>
-                <div class="mt-3"><a href="{% url 'gestion_reservas' %}?estado=PENDIENTE" class="text-danger small fw-bold card-link">Ver solicitudes <i class="bi bi-arrow-right ms-1"></i></a></div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="dashboard-card p-4">
-                <div class="d-flex justify-content-between">
-                    <div><span class="text-label d-block mb-1">Aprobadas</span><span class="text-value">{{ approved_count }}</span></div>
-                    <div class="icon-circle bg-gradient-success text-white shadow"><i class="bi bi-check-lg"></i></div>
+        <div class="col-md-3">
+            <div class="card text-dark bg-success bg-opacity-10 border-success shadow-sm h-100">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-uppercase text-muted small fw-bold">Aprobadas</h6>
+                        <h2 class="mb-0 fw-bold text-success-emphasis">{{ approved_count }}</h2>
+                    </div>
+                    <i class="bi bi-check-circle fs-1 text-success opacity-50"></i>
                 </div>
-                <div class="mt-3"><span class="text-success small fw-bold"><i class="bi bi-graph-up"></i> Histórico</span> <span class="text-muted small">total acumulado</span></div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="dashboard-card p-4">
-                <div class="d-flex justify-content-between">
-                    <div><span class="text-label d-block mb-1">Espacios</span><span class="text-value">{{ total_spaces }}</span></div>
-                    <div class="icon-circle bg-gradient-info text-white shadow"><i class="bi bi-building"></i></div>
+        <div class="col-md-3">
+            <div class="card text-dark bg-danger bg-opacity-10 border-danger shadow-sm h-100">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-uppercase text-muted small fw-bold">Rechazadas</h6>
+                        <h2 class="mb-0 fw-bold text-danger-emphasis">{{ rejected_count }}</h2>
+                    </div>
+                    <i class="bi bi-x-circle fs-1 text-danger opacity-50"></i>
                 </div>
-                <div class="mt-3"><a href="{% url 'gestion_inventario' %}" class="text-info small fw-bold card-link">Gestionar <i class="bi bi-arrow-right ms-1"></i></a></div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="dashboard-card p-4">
-                <div class="d-flex justify-content-between">
-                    <div><span class="text-label d-block mb-1">Stock Bajo</span><span class="text-value">{{ critical_resources }}</span></div>
-                    <div class="icon-circle bg-warning text-white shadow"><i class="bi bi-exclamation-triangle-fill"></i></div>
+        <div class="col-md-3">
+            <div class="card text-dark bg-light border-0 shadow-sm h-100">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-uppercase text-muted small fw-bold">Recursos Críticos</h6>
+                        <h2 class="mb-0 fw-bold {% if critical_resources > 0 %}text-danger{% else %}text-success{% endif %}">{{ critical_resources }}</h2>
+                    </div>
+                    <i class="bi bi-exclamation-triangle fs-1 text-secondary opacity-25"></i>
                 </div>
-                <div class="mt-3"><a href="{% url 'gestion_inventario' %}" class="text-warning small fw-bold card-link">Reponer <i class="bi bi-arrow-right ms-1"></i></a></div>
             </div>
         </div>
     </div>
 
-    <!-- GRÁFICOS Y TABLAS -->
-    <div class="row g-4">
-        
-        <div class="col-lg-8">
-            <!-- Gráfico de Actividad -->
-            <div class="dashboard-card mb-4">
-                <div class="card-header bg-transparent border-0 pt-4 px-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0 fw-bold text-secondary">Reservas por Día (Última Semana)</h5>
-                        <span class="badge bg-light text-dark border">Tiempo Real</span>
-                    </div>
-                </div>
-                <div class="card-body px-4">
-                    <div style="height: 300px;">
-                        <canvas id="activityChart" data-labels="{{ chart_labels|safe }}" data-values="{{ chart_data|safe }}"></canvas>
-                    </div>
+    <!-- FILA 2: ACCESOS DIRECTOS -->
+    <h5 class="mb-3 text-secondary border-bottom pb-2">Gestión y Configuración</h5>
+    <div class="row mb-4 g-3">
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100 shadow-sm hover-card">
+                <div class="card-body text-center">
+                    <div class="card-icon-bg bg-light text-inacap"><i class="bi bi-building fs-4"></i></div>
+                    <h6 class="fw-bold">Áreas / Facultades</h6>
+                    <a href="{% url 'gestion_areas' %}" class="stretched-link text-decoration-none text-muted small">Administrar</a>
                 </div>
             </div>
-
-            <!-- Tabla Reciente -->
-            <div class="dashboard-card">
-                <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
-                    <h5 class="mb-0 fw-bold text-secondary">Solicitudes Recientes</h5>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100 shadow-sm hover-card">
+                <div class="card-body text-center">
+                    <div class="card-icon-bg bg-light text-inacap"><i class="bi bi-mortarboard fs-4"></i></div>
+                    <h6 class="fw-bold">Carreras</h6>
+                    <a href="{% url 'gestion_carreras' %}" class="stretched-link text-decoration-none text-muted small">Administrar</a>
                 </div>
-                <div class="card-body px-0">
-                    <div class="table-responsive">
-                        <table class="table align-middle table-hover table-borderless mb-0">
-                            <thead class="bg-light text-uppercase small text-muted fw-bold">
-                                <tr>
-                                    <th class="ps-4">Usuario</th>
-                                    <th>Espacio</th>
-                                    <th>Estado</th>
-                                    <th class="text-end pe-4">Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for reserva in recent_reservas %}
-                                <tr style="border-bottom: 1px solid #f0f0f0;">
-                                    <td class="ps-4">
-                                        <div class="d-flex align-items-center">
-                                            <div class="icon-circle bg-light text-primary me-3" style="width:35px; height:35px; font-size:0.9rem; font-weight:bold;">
-                                                {{ reserva.solicitante.username|slice:":2"|upper }}
-                                            </div>
-                                            <div class="d-flex flex-column">
-                                                <span class="fw-bold text-dark">{{ reserva.solicitante.first_name|default:reserva.solicitante.username }}</span>
-                                                <span class="small text-muted">{{ reserva.fecha|date:"d M" }}</span>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <!-- NUEVO: Mostrar imagen si existe -->
-                                        <div class="d-flex align-items-center">
-                                            {% if reserva.espacio.imagen %}
-                                                <img src="{{ reserva.espacio.imagen.url }}" class="space-thumb me-2" alt="Foto">
-                                            {% else %}
-                                                <div class="space-thumb me-2 bg-light d-flex align-items-center justify-content-center text-muted">
-                                                    <i class="bi bi-building"></i>
-                                                </div>
-                                            {% endif %}
-                                            <span class="fw-bold text-dark">{{ reserva.espacio.nombre }}</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        {% if reserva.estado == 'PENDIENTE' %}
-                                            <span class="badge bg-warning text-dark rounded-pill px-3">Revisión</span>
-                                        {% elif reserva.estado == 'APROBADA' %}
-                                            <span class="badge bg-success rounded-pill px-3">Aprobada</span>
-                                        {% else %}
-                                            <span class="badge bg-danger rounded-pill px-3">Rechazada</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-end pe-4">
-                                        <a href="{% url 'gestion_reservas' %}?estado={{ reserva.estado }}" class="btn btn-sm btn-white border shadow-sm">Ver</a>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr><td colspan="4" class="text-center py-4 text-muted">Sin actividad reciente</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100 shadow-sm hover-card">
+                <div class="card-body text-center">
+                    <div class="card-icon-bg bg-light text-inacap"><i class="bi bi-people fs-4"></i></div>
+                    <h6 class="fw-bold">Usuarios</h6>
+                    <a href="{% url 'gestion_usuarios' %}" class="stretched-link text-decoration-none text-muted small">Administrar</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100 shadow-sm hover-card border-warning">
+                <div class="card-body text-center">
+                    <div class="card-icon-bg bg-warning text-dark"><i class="bi bi-calendar-check fs-4"></i></div>
+                    <h6 class="fw-bold">Torre de Control</h6>
+                    <a href="{% url 'gestion_reservas' %}" class="stretched-link text-decoration-none text-dark small fw-bold">Gestionar Reservas</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FILA 3: ANALÍTICAS Y GRÁFICOS -->
+    <h5 class="mb-3 text-secondary border-bottom pb-2">Analíticas del Sistema</h5>
+    <div class="row g-4">
+        
+        <!-- Gráfico 1: Actividad Semanal -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white fw-bold">Actividad (Últimos 7 Días)</div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="reservasChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-4">
-            <!-- Gráfico Dona -->
-            <div class="dashboard-card mb-4">
-                <div class="card-header bg-transparent border-0 pt-4 px-4">
-                    <h5 class="mb-0 fw-bold text-secondary">Distribución Actual</h5>
-                </div>
-                <div class="card-body d-flex flex-column align-items-center justify-content-center" style="min-height: 250px;">
-                    <div style="width: 200px; height: 200px;">
-                        <canvas id="statusChart" 
-                                data-approved="{{ approved_count|default:0 }}" 
-                                data-pending="{{ pending_count|default:0 }}"
-                                data-rejected="{{ rejected_count|default:0 }}">
-                        </canvas>
-                    </div>
-                    <div class="mt-4 text-center w-100">
-                        <div class="d-flex justify-content-around">
-                            <div class="text-center">
-                                <span class="d-block h4 fw-bold mb-0 text-warning">{{ pending_count }}</span>
-                                <span class="small text-muted">Pend.</span>
-                            </div>
-                            <div class="text-center">
-                                <span class="d-block h4 fw-bold mb-0 text-success">{{ approved_count }}</span>
-                                <span class="small text-muted">Aprob.</span>
-                            </div>
-                            <div class="text-center">
-                                <span class="d-block h4 fw-bold mb-0 text-danger">{{ rejected_count }}</span>
-                                <span class="small text-muted">Rech.</span>
-                            </div>
-                        </div>
+        <!-- Gráfico 2: Top Recursos -->
+        <div class="col-lg-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white fw-bold">Top 5 Recursos Solicitados</div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="recursosChart"></canvas>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Accesos Rápidos -->
-            <div class="dashboard-card bg-gradient-primary text-white">
-                <div class="card-body p-4">
-                    <h5 class="fw-bold mb-4 text-white">Accesos Directos</h5>
-                    <div class="quick-access-item d-flex align-items-center">
-                        <div class="icon-circle bg-white text-primary me-3" style="width:40px; height:40px; font-size:1.2rem;"><i class="bi bi-people"></i></div>
-                        <div><a href="{% url 'gestion_usuarios' %}" class="text-white text-decoration-none fw-bold">Usuarios</a><span class="d-block small opacity-75">Administrar roles</span></div>
-                    </div>
-                    <div class="quick-access-item d-flex align-items-center">
-                        <div class="icon-circle bg-white text-primary me-3" style="width:40px; height:40px; font-size:1.2rem;"><i class="bi bi-box-seam"></i></div>
-                        <div><a href="{% url 'gestion_inventario' %}" class="text-white text-decoration-none fw-bold">Inventario</a><span class="d-block small opacity-75">Ver stock y activos</span></div>
+        <!-- Gráfico 3: Reservas por Área -->
+        <div class="col-lg-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white fw-bold">Solicitudes por Área</div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="areasChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -230,66 +155,91 @@
     </div>
 </div>
 
+<!-- Scripts de Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        
-        // 1. Gráfico de Barras
-        const canvasActivity = document.getElementById('activityChart');
-        if (canvasActivity) {
-            const rawLabels = canvasActivity.getAttribute('data-labels');
-            const rawData = canvasActivity.getAttribute('data-values');
-            const labels = rawLabels.replace(/[\[\]']/g, '').split(', ');
-            const dataValues = JSON.parse(rawData);
+    // Configuración común
+    Chart.defaults.font.family = '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+    Chart.defaults.color = '#666';
 
-            new Chart(canvasActivity.getContext('2d'), {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Reservas',
-                        data: dataValues, 
-                        backgroundColor: '#5e72e4',
-                        borderRadius: 5,
-                        barThickness: 25
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { borderDash: [2, 2] } },
-                        x: { grid: { display: false } }
-                    }
+    // 1. Gráfico de Línea (Actividad)
+    const ctx1 = document.getElementById('reservasChart');
+    if(ctx1){
+        new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: {{ chart_labels|safe }},
+                datasets: [{
+                    label: 'Solicitudes',
+                    data: {{ chart_data|safe }},
+                    borderColor: '#D71920', // Rojo INACAP
+                    backgroundColor: 'rgba(215, 25, 32, 0.1)',
+                    tension: 0.3,
+                    fill: true,
+                    pointBackgroundColor: '#D71920'
+                }]
+            },
+            options: { 
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { borderDash: [2, 4] } },
+                    x: { grid: { display: false } }
                 }
-            });
-        }
+            }
+        });
+    }
 
-        // 2. Gráfico de Dona
-        const chartCanvas = document.getElementById('statusChart');
-        if (chartCanvas) {
-            const approvedCount = parseInt(chartCanvas.getAttribute('data-approved')) || 0;
-            const pendingCount = parseInt(chartCanvas.getAttribute('data-pending')) || 0;
-            const rejectedCount = parseInt(chartCanvas.getAttribute('data-rejected')) || 0;
+    // 2. Gráfico de Barras (Top Recursos)
+    const ctx2 = document.getElementById('recursosChart');
+    if(ctx2){
+        new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: {{ recursos_labels|safe }},
+                datasets: [{
+                    label: 'Cantidad',
+                    data: {{ recursos_data|safe }},
+                    backgroundColor: '#4a4a4a', // Gris oscuro
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y', // Barra horizontal
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+    }
 
-            new Chart(chartCanvas.getContext('2d'), {
-                type: 'doughnut',
-                data: {
-                    labels: ['Aprobadas', 'Pendientes', 'Rechazadas'],
-                    datasets: [{
-                        data: [approvedCount, pendingCount, rejectedCount],
-                        backgroundColor: ['#2dce89', '#ffc107', '#f5365c'], // Verde, Amarillo, Rojo
-                        borderWidth: 0,
-                        cutout: '75%'
-                    }]
+    // 3. Gráfico de Donut (Áreas)
+    const ctx3 = document.getElementById('areasChart');
+    if(ctx3){
+        new Chart(ctx3, {
+            type: 'doughnut',
+            data: {
+                labels: {{ areas_labels|safe }},
+                datasets: [{
+                    data: {{ areas_data|safe }},
+                    backgroundColor: [
+                        '#D71920', // Rojo
+                        '#333333', // Gris Oscuro
+                        '#888888', // Gris Medio
+                        '#cccccc', // Gris Claro
+                        '#f8f9fa'  // Casi blanco
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } 
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }
-                }
-            });
-        }
-    });
+                cutout: '70%'
+            }
+        });
+    }
 </script>
 {% endblock %}

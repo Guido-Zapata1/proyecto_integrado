@@ -14,25 +14,58 @@
     .sidebar{min-height:100vh;background:#fff;border-right:1px solid #dee2e6}
     .sidebar .nav-link{color:#333!important}
     .sidebar .nav-link:hover{background:#f1f1f1;color:var(--inacap-red)!important}
+    .card{border:0;border-radius:14px}
+    .btn-inacap{background:var(--inacap-red);color:#fff;border:0}
+    .btn-inacap:hover{opacity:.9;color:#fff}
+    .badge-inacap{background:var(--inacap-red)}
+
+    /* ✅ Notificaciones (badge campanita) */
+    .notif-badge{
+      min-width: 18px;
+      font-size: .70rem;
+      padding: .25em .45em;
+    }
   </style>
+  {% block extra_head %}{% endblock %}
 </head>
+
 <body>
-  <nav class="navbar navbar-expand-lg shadow-sm">
+  <nav class="navbar navbar-expand-lg navbar-dark">
     <div class="container-fluid">
-      <!-- Enlace al Home (Ruta Global) -->
-      <a class="navbar-brand" href="{% url 'home' %}"><i class="bi bi-calendar-check"></i> INACAP Reservas</a>
-      <div class="d-flex">
+      <a class="navbar-brand" href="{% url 'home' %}">
+        <i class="bi bi-calendar2-check"></i> INACAP Reservas
+      </a>
+
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="d-flex align-items-center">
         {% if user.is_authenticated %}
-          <!-- CORRECCIÓN AQUÍ: Usamos user.email o user.first_name porque user.username es None -->
-          <span class="text-white me-3">Hola, {{ user.first_name|default:user.email }}</span>
-          
-          <!-- Formulario seguro para Logout -->
-          <form action="{% url 'logout' %}" method="post" class="d-inline">
+
+          <!-- 🔔 Notificaciones -->
+          <a class="btn btn-outline-light btn-sm position-relative me-2"
+             href="{% url 'notificaciones:lista' %}"
+             title="Notificaciones">
+            <i class="bi bi-bell"></i>
+            <span id="notifBadge"
+                  class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-dark notif-badge"
+                  style="display:none;">
+              0
+            </span>
+          </a>
+
+          <span class="text-white me-3 small">
+            <i class="bi bi-person-circle"></i>
+            {{ user.first_name }} {{ user.last_name }}
+          </span>
+
+          <form method="post" action="{% url 'logout' %}">
             {% csrf_token %}
-            <button type="submit" class="btn btn-sm btn-light text-danger border-0">Salir</button>
+            <button class="btn btn-light btn-sm">
+              <i class="bi bi-box-arrow-right"></i> Salir
+            </button>
           </form>
-        {% else %}
-          <a href="{% url 'login' %}" class="btn btn-sm btn-light text-danger">Ingresar</a>
         {% endif %}
       </div>
     </div>
@@ -43,18 +76,17 @@
       {% if user.is_authenticated %}
       <nav class="col-md-3 col-lg-2 sidebar py-3 d-md-block collapse" id="sidebarMenu">
         <ul class="nav flex-column">
-          
+
           <!-- ==================== MENU GENERAL ==================== -->
           <li class="nav-item">
             <a class="nav-link" href="{% url 'home' %}">
               <i class="bi bi-speedometer2"></i> Dashboard
             </a>
           </li>
-          
-          <!-- Solo mostramos opciones de crear/listar si NO es Mantenimiento (LEGACY) -->
-          {% if user.rol != 'MANTENIMIENTO' %}
+
+          <!-- Mostrar para SOLICITANTE y ADMIN -->
+          {% if user.rol == 'SOLICITANTE' or user.rol == 'ADMIN' %}
           <li class="nav-item">
-            <!-- Ruta con namespace 'reservas' porque está en reservas/urls.py -->
             <a class="nav-link" href="{% url 'reservas:crear_reserva' %}">
               <i class="bi bi-plus-circle"></i> Nueva Reserva
             </a>
@@ -64,40 +96,72 @@
               <i class="bi bi-clock-history"></i> Mis Reservas
             </a>
           </li>
+
+          <!-- ✅ REPORTES -->
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'reportes:home' %}">
+              <i class="bi bi-file-earmark-arrow-down"></i> Reportes
+            </a>
+          </li>
+
+          <!-- ✅ NOTIFICACIONES también en sidebar -->
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'notificaciones:lista' %}">
+              <i class="bi bi-bell"></i> Notificaciones
+              <span id="notifBadgeSide"
+                    class="badge rounded-pill bg-dark ms-2 notif-badge"
+                    style="display:none;">0</span>
+            </a>
+          </li>
           {% endif %}
 
           <!-- ==================== MENU ADMINISTRACIÓN ==================== -->
           {% if user.rol == 'ADMIN' %}
             <hr>
             <p class="px-3 text-muted small fw-bold">ADMINISTRACIÓN</p>
-            
-            <!-- Rutas Globales (definidas en core/urls.py) -->
+
             <li class="nav-item">
               <a class="nav-link" href="{% url 'gestion_reservas' %}">
                 <i class="bi bi-list-check"></i> Gestión Solicitudes
               </a>
             </li>
-            
-            <!-- Rutas Globales de Inventario (definidas en inventario/urls.py SIN namespace) -->
+
             <li class="nav-item">
-              <a class="nav-link" href="{% url 'gestion_espacios' %}">
+              <a class="nav-link" href="{% url 'inventario:gestion_espacios' %}">
                 <i class="bi bi-building"></i> Espacios
               </a>
             </li>
+
             <li class="nav-item">
-              <a class="nav-link" href="{% url 'gestion_recursos' %}">
+              <a class="nav-link" href="{% url 'inventario:gestion_recursos' %}">
                 <i class="bi bi-box-seam"></i> Inventario
               </a>
             </li>
-            
+
             <li class="nav-item">
               <a class="nav-link" href="{% url 'gestion_usuarios' %}">
                 <i class="bi bi-people"></i> Usuarios
               </a>
             </li>
+
+            <li class="nav-item mt-2">
+              <span class="nav-link disabled text-uppercase fw-bold text-muted small" style="padding-left: 1rem;">
+                Configuración
+              </span>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'gestion_areas' %}">
+                <i class="bi bi-building-gear"></i> Áreas
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'gestion_carreras' %}">
+                <i class="bi bi-mortarboard"></i> Carreras
+              </a>
+            </li>
           {% endif %}
-          
-          <!-- ==================== MI CUENTA (NUEVO) ==================== -->
+
+          <!-- ==================== MI CUENTA ==================== -->
           <hr>
           <p class="px-3 text-muted small fw-bold">MI CUENTA</p>
           <li class="nav-item">
@@ -105,7 +169,7 @@
               <i class="bi bi-shield-lock"></i> Cambiar Contraseña
             </a>
           </li>
-          
+
         </ul>
       </nav>
       {% endif %}
@@ -117,7 +181,43 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- ✅ Script Notificaciones: badge + polling -->
+  {% if user.is_authenticated %}
+  <script>
+    async function updateNotifBadge(){
+      try{
+        const r = await fetch("{% url 'notificaciones:unread_count' %}", { credentials: "same-origin" });
+        if(!r.ok) return;
+
+        const data = await r.json();
+        const n = Number(data.unread || 0);
+
+        const topBadge = document.getElementById("notifBadge");
+        const sideBadge = document.getElementById("notifBadgeSide");
+
+        function applyBadge(badge){
+          if(!badge) return;
+          if(n > 0){
+            badge.style.display = "inline-block";
+            badge.textContent = (n > 99) ? "99+" : String(n);
+          }else{
+            badge.style.display = "none";
+            badge.textContent = "0";
+          }
+        }
+
+        applyBadge(topBadge);
+        applyBadge(sideBadge);
+
+      }catch(e){}
+    }
+
+    updateNotifBadge();
+    setInterval(updateNotifBadge, 30000);
+  </script>
+  {% endif %}
+
   {% block extra_js %}{% endblock %}
 </body>
 </html>
-

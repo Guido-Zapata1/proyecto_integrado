@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestión de Áreas{% endblock %}
+
+{% block content %}
+<style>
+    .cursor-pointer { cursor: pointer; }
+    .sort-icon { font-size: 0.8em; margin-left: 5px; color: #999; }
+    .sortable:hover { background-color: #f2f2f2; }
+    .sortable:hover .sort-icon { color: #333; }
+</style>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Gestión de Áreas</h2>
+        <a href="{% url 'crear_area' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Nueva Área
+        </a>
+    </div>
+
+    <!-- Buscador rápido (Opcional, para complementar el ordenamiento) -->
+    <div class="mb-3">
+        <input type="text" id="searchInput" class="form-control" placeholder="Buscar área...">
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <!-- Encabezados Ordenables -->
+                        <th scope="col" class="sortable cursor-pointer" data-sort="nombre">
+                            Nombre <i class="bi bi-arrow-down-up sort-icon"></i>
+                        </th>
+                        <th scope="col" class="sortable cursor-pointer" data-sort="descripcion">
+                            Descripción <i class="bi bi-arrow-down-up sort-icon"></i>
+                        </th>
+                        <th scope="col">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="areasTableBody">
+                    {% for area in areas %}
+                    <!-- Data attributes para el JS de ordenamiento -->
+                    <tr class="area-row" data-nombre="{{ area.nombre|lower }}" data-descripcion="{{ area.descripcion|default:''|lower }}">
+                        <td class="fw-bold">{{ area.nombre }}</td>
+                        <td>{{ area.descripcion|default:"-" }}</td>
+                        <td>
+                            <!-- Botón Editar -->
+                            <a href="{% url 'editar_area' area.id %}" class="btn btn-sm btn-outline-primary me-1" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+
+                            <!-- Botón Eliminar -->
+                            <a href="{% url 'eliminar_area' area.id %}" 
+                               class="btn btn-sm btn-outline-danger"
+                               onclick="return confirm('¿Eliminar esta área? Se borrarán también sus carreras asociadas.');"
+                               title="Eliminar">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr id="noResultsRow">
+                        <td colspan="3" class="text-center py-4 text-muted">No hay áreas registradas.</td>
+                    </tr>
+                    {% endfor %}
+                    <!-- Fila oculta para búsqueda sin resultados -->
+                    <tr id="searchNoResults" style="display: none;">
+                        <td colspan="3" class="text-center py-4 text-muted">No se encontraron coincidencias.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tableBody = document.getElementById('areasTableBody');
+    const sortableHeaders = document.querySelectorAll('.sortable');
+    const searchInput = document.getElementById('searchInput');
+    const searchNoResults = document.getElementById('searchNoResults');
+    
+    let rows = Array.from(document.querySelectorAll('.area-row'));
+    let currentSort = { column: null, direction: 'asc' };
+
+    // --- ORDENAMIENTO ---
+    sortableHeaders.forEach(header => {
+        header.addEventListener('click', () => {
+            const column = header.getAttribute('data-sort');
+            
+            // Alternar dirección
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+
+            // Actualizar iconos visuales
+            updateIcons(header);
+
+            // Ordenar filas
+            rows.sort((a, b) => {
+                let valA = a.getAttribute('data-' + column);
+                let valB = b.getAttribute('data-' + column);
+
+                if (currentSort.direction === 'asc') {
+                    return valA.localeCompare(valB);
+                } else {
+                    return valB.localeCompare(valA);
+                }
+            });
+
+            // Re-insertar filas
+            rows.forEach(row => tableBody.appendChild(row));
+            
+            // Mover filas de "no resultados" al final
+            if(searchNoResults) tableBody.appendChild(searchNoResults);
+        });
+    });
+
+    function updateIcons(activeHeader) {
+        sortableHeaders.forEach(th => {
+            const icon = th.querySelector('.sort-icon');
+            icon.className = 'bi bi-arrow-down-up sort-icon';
+            icon.style.color = '#999';
+        });
+
+        const activeIcon = activeHeader.querySelector('.sort-icon');
+        activeIcon.className = currentSort.direction === 'asc' ? 'bi bi-arrow-up sort-icon' : 'bi bi-arrow-down sort-icon';
+        activeIcon.style.color = '#333';
+    }
+
+    // --- BÚSQUEDA SIMPLE ---
+    if(searchInput) {
+        searchInput.addEventListener('keyup', function() {
+            const query = this.value.toLowerCase();
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                if(text.includes(query)) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            if(searchNoResults) {
+                searchNoResults.style.display = visibleCount === 0 ? '' : 'none';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

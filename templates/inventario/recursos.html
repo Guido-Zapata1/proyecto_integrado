@@ -26,29 +26,39 @@
                     <i class="bi bi-plus-circle me-1"></i> Nuevo Recurso
                 </div>
                 <div class="card-body">
+                    <!-- Formulario con validación JS -->
                     <form method="POST" id="createRecursoForm" onsubmit="return validateForm()">
                         {% csrf_token %}
+                        <input type="hidden" name="action" value="crear">
                         
+                        <div class="mb-3">
+                            <label class="form-label small text-secondary fw-bold">Código Interno</label>
+                            <input type="text" name="codigo" id="inputCodigo" class="form-control" required 
+                                   placeholder="Ej: PROY-001"
+                                   pattern="[a-zA-Z0-9-]+" 
+                                   title="Solo letras, números y guiones.">
+                            <!-- Div para error de código duplicado -->
+                            <div id="errorCodigo" class="text-danger small mt-1" style="display:none;"></div>
+                        </div>
+
                         <div class="mb-3">
                             <label class="form-label small text-secondary fw-bold">Nombre</label>
                             <input type="text" name="nombre" id="inputNombre" class="form-control" required 
-                                   placeholder="Ej: Proyector HDMI"
-                                   pattern="[a-zA-Z0-9\s]+" 
-                                   title="Solo letras y números.">
+                                   placeholder="Ej: Proyector HDMI">
+                            <!-- Div para error de nombre duplicado -->
                             <div id="errorNombre" class="text-danger small mt-1" style="display:none;"></div>
                         </div>
                         
                         <div class="mb-3">
-                            <label class="form-label small text-secondary fw-bold">Stock Inicial</label>
-                            <input type="number" name="cantidad" class="form-control" required min="0" placeholder="Ej: 10">
+                            <label class="form-label small text-secondary fw-bold">Stock Físico Total</label>
+                            <input type="number" name="stock" class="form-control" required min="0" placeholder="Ej: 10">
+                            <div class="form-text small">Cantidad total comprada/existente.</div>
                         </div>
                         
                         <div class="mb-3">
                             <label class="form-label small text-secondary fw-bold">Descripción</label>
                             <textarea name="descripcion" class="form-control" rows="2" 
-                                      placeholder="Detalles del recurso..."
-                                      pattern="[a-zA-Z0-9\s]+" 
-                                      title="Solo se permiten letras y números."></textarea>
+                                      placeholder="Detalles del recurso..."></textarea>
                         </div>
                         
                         <div class="d-grid">
@@ -71,7 +81,7 @@
                         
                         <div class="input-group input-group-sm" style="width: 250px;">
                             <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
-                            <input type="text" id="searchRecurso" class="form-control border-start-0 bg-light" placeholder="Buscar recurso...">
+                            <input type="text" id="searchRecurso" class="form-control border-start-0 bg-light" placeholder="Buscar por nombre o código...">
                         </div>
                     </div>
                 </div>
@@ -81,11 +91,17 @@
                         <table class="table table-hover align-middle mb-0" id="recursosTable">
                             <thead class="table-light">
                                 <tr>
+                                    <!-- 0. Código (Ordenable) -->
                                     <th class="ps-3 sortable cursor-pointer" onclick="sortTable(0)" data-dir="asc">
+                                        Código <i class="bi bi-arrow-down-up small text-muted ms-1"></i>
+                                    </th>
+                                    <!-- 1. Nombre (Ordenable) -->
+                                    <th class="sortable cursor-pointer" onclick="sortTable(1)" data-dir="asc">
                                         Nombre <i class="bi bi-arrow-down-up small text-muted ms-1"></i>
                                     </th>
-                                    <th class="text-center sortable cursor-pointer" onclick="sortTable(1)" data-dir="asc">
-                                        Stock <i class="bi bi-arrow-down-up small text-muted ms-1"></i>
+                                    <!-- 2. Stock (Ordenable - AHORA ES TOTAL) -->
+                                    <th class="text-center sortable cursor-pointer" onclick="sortTable(2)" data-dir="asc">
+                                        Stock Total <i class="bi bi-arrow-down-up small text-muted ms-1"></i>
                                     </th>
                                     <th>Descripción</th>
                                     <th class="text-end pe-3">Acciones</th>
@@ -94,41 +110,53 @@
                             <tbody id="recursoTableBody">
                                 {% for recurso in recursos %}
                                 <tr>
-                                    <td class="ps-3 fw-bold text-dark recurso-name">{{ recurso.nombre }}</td>
+                                    <!-- CÓDIGO -->
+                                    <td class="ps-3">
+                                        <span class="badge bg-light text-dark border font-monospace recurso-code">{{ recurso.codigo }}</span>
+                                    </td>
+
+                                    <!-- NOMBRE -->
+                                    <td class="fw-bold text-dark recurso-name">{{ recurso.nombre }}</td>
                                     
+                                    <!-- STOCK FÍSICO TOTAL -->
+                                    <!-- Usamos recurso.stock en lugar de stock_disponible -->
                                     <td class="text-center" data-value="{{ recurso.stock }}">
-                                        <span class="badge {% if recurso.stock > 5 %}bg-light text-dark border{% elif recurso.stock > 0 %}bg-warning text-dark{% else %}bg-danger{% endif %} px-3 rounded-pill">
-                                            {{ recurso.stock }}
+                                        <span class="badge bg-secondary bg-opacity-10 text-dark border px-3 py-2 rounded-pill fs-6">
+                                            {{ recurso.stock }} Unidades
                                         </span>
                                     </td>
-                                    <td><small class="text-muted">{{ recurso.descripcion|default:"-"|truncatechars:40 }}</small></td>
+
+                                    <!-- DESCRIPCIÓN -->
+                                    <td><small class="text-muted">{{ recurso.descripcion|default:"-"|truncatechars:30 }}</small></td>
+                                    
+                                    <!-- ACCIONES -->
                                     <td class="text-end pe-3">
-                                        <!-- CORRECCIÓN AQUÍ: Enlace sin prefijo 'inventario:' -->
+                                        <!-- BOTÓN EDITAR -->
                                         <a href="{% url 'editar_recurso' recurso.id %}" 
                                            class="btn btn-sm btn-outline-primary border-0 me-1" 
                                            title="Editar">
                                             <i class="bi bi-pencil"></i>
                                         </a>
                                         
-                                        <!-- CORRECCIÓN AQUÍ: Enlace sin prefijo 'inventario:' -->
+                                        <!-- BOTÓN ELIMINAR -->
                                         <a href="{% url 'eliminar_recurso' recurso.id %}" 
                                            class="btn btn-sm btn-outline-danger border-0" 
                                            title="Eliminar"
-                                           onclick="return confirm('¿Eliminar {{ recurso.nombre }}?');">
+                                           onclick="return confirm('¿Estás seguro de eliminar {{ recurso.nombre }}?');">
                                             <i class="bi bi-trash"></i>
                                         </a>
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr class="no-results">
-                                    <td colspan="4" class="text-center text-muted py-5">
+                                    <td colspan="5" class="text-center text-muted py-5">
                                         <i class="bi bi-box2 fs-1 d-block mb-2 text-secondary opacity-50"></i>
                                         No hay recursos registrados.
                                     </td>
                                 </tr>
                                 {% endfor %}
                                 <tr id="noResultsRecurso" style="display: none;">
-                                    <td colspan="4" class="text-center text-muted py-4">
+                                    <td colspan="5" class="text-center text-muted py-4">
                                         No se encontraron coincidencias.
                                     </td>
                                 </tr>
@@ -142,31 +170,58 @@
 </div>
 
 <script>
-    // 1. VALIDACIÓN DE FORMULARIO (Duplicados)
+    // 1. VALIDACIÓN DE DUPLICADOS
     function validateForm() {
         const inputNombre = document.getElementById('inputNombre');
-        const errorDiv = document.getElementById('errorNombre');
-        const nombreNuevo = inputNombre.value.trim().toUpperCase();
+        const inputCodigo = document.getElementById('inputCodigo');
         
-        // Obtener nombres existentes
+        const errorNombre = document.getElementById('errorNombre');
+        const errorCodigo = document.getElementById('errorCodigo');
+        
+        const nombreNuevo = inputNombre.value.trim().toUpperCase();
+        const codigoNuevo = inputCodigo.value.trim().toUpperCase();
+        
+        const codigosExistentes = document.querySelectorAll('.recurso-code');
         const nombresExistentes = document.querySelectorAll('.recurso-name');
-        let existe = false;
+        
+        let error = false;
 
-        nombresExistentes.forEach(td => {
-            if (td.innerText.trim().toUpperCase() === nombreNuevo) {
-                existe = true;
+        // Validar Código Duplicado
+        let existeCodigo = false;
+        codigosExistentes.forEach(span => {
+            if (span.innerText.trim().toUpperCase() === codigoNuevo) {
+                existeCodigo = true;
             }
         });
 
-        if (existe) {
-            errorDiv.innerText = "Error: Este recurso ya existe en el inventario.";
-            errorDiv.style.display = 'block';
-            inputNombre.classList.add('is-invalid');
-            return false; // Bloquear envío
+        if (existeCodigo) {
+            errorCodigo.innerText = "Error: Este código ya existe.";
+            errorCodigo.style.display = 'block';
+            inputCodigo.classList.add('is-invalid');
+            error = true;
+        } else {
+            errorCodigo.style.display = 'none';
+            inputCodigo.classList.remove('is-invalid');
         }
 
-        errorDiv.style.display = 'none';
-        inputNombre.classList.remove('is-invalid');
+        // Validar Nombre Duplicado
+        let existeNombre = false;
+        nombresExistentes.forEach(td => {
+            if (td.innerText.trim().toUpperCase() === nombreNuevo) {
+                existeNombre = true;
+            }
+        });
+
+        if (existeNombre) {
+            errorNombre.innerText = "Advertencia: Ya existe un recurso con este nombre.";
+            errorNombre.style.display = 'block';
+            inputNombre.classList.add('is-invalid');
+        } else {
+            errorNombre.style.display = 'none';
+            inputNombre.classList.remove('is-invalid');
+        }
+
+        if (error) return false;
         return true;
     }
 
@@ -177,7 +232,8 @@
         let visible = 0;
 
         rows.forEach(row => {
-            if (row.innerText.toLowerCase().includes(filter)) {
+            let text = row.innerText.toLowerCase();
+            if (text.includes(filter)) {
                 row.style.display = '';
                 visible++;
             } else {
@@ -188,7 +244,7 @@
         document.getElementById('noResultsRecurso').style.display = (visible === 0 && rows.length > 0) ? '' : 'none';
     });
 
-    // 3. ORDENAMIENTO
+    // 3. ORDENAMIENTO DE TABLA
     function sortTable(n) {
         var table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
         table = document.getElementById("recursosTable");
@@ -212,21 +268,26 @@
                 x = rows[i].getElementsByTagName("TD")[n];
                 y = rows[i + 1].getElementsByTagName("TD")[n];
 
-                let xVal = x.getAttribute('data-value');
-                let yVal = y.getAttribute('data-value');
+                let xVal = (x.getAttribute('data-value') || x.innerText).toLowerCase().trim();
+                let yVal = (y.getAttribute('data-value') || y.innerText).toLowerCase().trim();
 
-                if (xVal !== null && yVal !== null) {
-                    xVal = parseFloat(xVal);
-                    yVal = parseFloat(yVal);
-                } else {
-                    xVal = x.innerText.toLowerCase();
-                    yVal = y.innerText.toLowerCase();
-                }
+                let xNum = parseFloat(xVal);
+                let yNum = parseFloat(yVal);
+                
+                let isNumeric = !isNaN(xNum) && isFinite(xVal) && !isNaN(yNum) && isFinite(yVal);
 
                 if (dir == "asc") {
-                    if (xVal > yVal) { shouldSwitch = true; break; }
+                    if (isNumeric) {
+                        if (xNum > yNum) { shouldSwitch = true; break; }
+                    } else {
+                        if (xVal > yVal) { shouldSwitch = true; break; }
+                    }
                 } else if (dir == "desc") {
-                    if (xVal < yVal) { shouldSwitch = true; break; }
+                    if (isNumeric) {
+                        if (xNum < yNum) { shouldSwitch = true; break; }
+                    } else {
+                        if (xVal < yVal) { shouldSwitch = true; break; }
+                    }
                 }
             }
             if (shouldSwitch) {
@@ -243,5 +304,3 @@
     .sortable:hover { background-color: #f1f1f1; user-select: none; }
 </style>
 {% endblock %}
-
-

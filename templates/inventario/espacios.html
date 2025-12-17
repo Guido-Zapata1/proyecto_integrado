@@ -25,7 +25,7 @@
                     <i class="bi bi-plus-circle me-1"></i> Nuevo Espacio
                 </div>
                 <div class="card-body">
-                    <!-- CORRECCIÓN CRÍTICA: enctype="multipart/form-data" es OBLIGATORIO para subir archivos -->
+                    <!-- enctype para subir archivos -->
                     <form method="POST" id="createSpaceForm" enctype="multipart/form-data" onsubmit="return validateForm()">
                         {% csrf_token %}
                         
@@ -75,7 +75,7 @@
                         <table class="table table-hover align-middle mb-0" id="espaciosTable">
                             <thead class="table-light">
                                 <tr>
-                                    <th class="ps-3">Imagen</th> <!-- Nueva Columna -->
+                                    <th class="ps-3">Imagen</th>
                                     <th class="cursor-pointer" onclick="sortTable(1)">Nombre</th>
                                     <th>Ubicación</th>
                                     <th class="text-center">Cap.</th>
@@ -106,8 +106,9 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-end pe-3">
-                                        <a href="{% url 'editar_espacio' espacio.id %}" class="btn btn-sm btn-outline-primary border-0 me-1"><i class="bi bi-pencil"></i></a>
-                                        <a href="{% url 'eliminar_espacio' espacio.id %}" class="btn btn-sm btn-outline-danger border-0" onclick="return confirm('¿Eliminar {{ espacio.nombre }}?');"><i class="bi bi-trash"></i></a>
+                                        <!-- CORRECCIÓN AQUÍ: Se agregaron los prefijos 'inventario:' -->
+                                        <a href="{% url 'inventario:editar_espacio' espacio.id %}" class="btn btn-sm btn-outline-primary border-0 me-1"><i class="bi bi-pencil"></i></a>
+                                        <a href="{% url 'inventario:eliminar_espacio' espacio.id %}" class="btn btn-sm btn-outline-danger border-0" onclick="return confirm('¿Eliminar {{ espacio.nombre }}?');"><i class="bi bi-trash"></i></a>
                                     </td>
                                 </tr>
                                 {% empty %}

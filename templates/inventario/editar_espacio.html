@@ -60,8 +60,8 @@
                         
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-warning">Guardar Cambios</button>
-                            <!-- Apuntar correctamente a la URL -->
-                            <a href="{% url 'gestion_espacios' %}" class="btn btn-outline-secondary">Cancelar</a>
+                            <!-- CORRECCIÓN AQUÍ: Agregado el prefijo 'inventario:' -->
+                            <a href="{% url 'inventario:gestion_espacios' %}" class="btn btn-outline-secondary">Cancelar</a>
                         </div>
                     </form>
 

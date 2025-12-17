@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestión de Carreras{% endblock %}
+
+{% block content %}
+<style>
+    .cursor-pointer { cursor: pointer; }
+    .sort-icon { font-size: 0.8em; margin-left: 5px; color: #999; }
+    .sortable:hover { background-color: #f2f2f2; }
+    .sortable:hover .sort-icon { color: #333; }
+    
+    /* Estilos Institucionales INACAP */
+    .btn-inacap {
+        background-color: #D71920;
+        border-color: #D71920;
+        color: white;
+    }
+    .btn-inacap:hover {
+        background-color: #b0151a;
+        border-color: #b0151a;
+        color: white;
+    }
+    .badge-inacap-light {
+        background-color: #fce8e8 !important; /* Fondo rojo muy suave */
+        color: #D71920 !important;            /* Texto rojo institucional */
+        border: 1px solid #f5c6cb;
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 style="color: #333;">Gestión de Carreras</h2>
+        <a href="{% url 'crear_carrera' %}" class="btn btn-inacap shadow-sm">
+            <i class="bi bi-plus-circle"></i> Nueva Carrera
+        </a>
+    </div>
+
+    <!-- Buscador -->
+    <div class="card border-0 shadow-sm mb-4 bg-light">
+        <div class="card-body py-3">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-12">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                        <input type="text" id="searchInput" class="form-control border-start-0 ps-0" placeholder="Buscar por nombre, código o área...">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0 align-middle" id="carrerasTable">
+                <thead class="bg-light">
+                    <tr>
+                        <!-- Encabezados Ordenables -->
+                        <th scope="col" class="sortable cursor-pointer ps-4" data-sort="nombre">
+                            Carrera <i class="bi bi-arrow-down-up sort-icon"></i>
+                        </th>
+                        <th scope="col" class="sortable cursor-pointer" data-sort="codigo">
+                            Código <i class="bi bi-arrow-down-up sort-icon"></i>
+                        </th>
+                        <th scope="col" class="sortable cursor-pointer" data-sort="area">
+                            Área Perteneciente <i class="bi bi-arrow-down-up sort-icon"></i>
+                        </th>
+                        <th scope="col" class="text-end pe-4">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="carrerasTableBody">
+                    {% for carrera in carreras %}
+                    <!-- Data attributes para JS -->
+                    <tr class="carrera-row" 
+                        data-nombre="{{ carrera.nombre|lower }}" 
+                        data-codigo="{{ carrera.codigo|default:''|lower }}" 
+                        data-area="{{ carrera.area.nombre|lower }}">
+                        
+                        <td class="fw-bold ps-4 text-dark">{{ carrera.nombre }}</td>
+                        <td>
+                            <span class="badge bg-light text-secondary border">{{ carrera.codigo|default:"N/A" }}</span>
+                        </td>
+                        <td>
+                            <!-- Badge Estilo INACAP -->
+                            <span class="badge badge-inacap-light">
+                                <i class="bi bi-building me-1"></i>{{ carrera.area.nombre }}
+                            </span>
+                        </td>
+                        <td class="text-end pe-4">
+                            <!-- BOTÓN DE EDITAR (Gris neutro) -->
+                            <a href="{% url 'editar_carrera' carrera.id %}" class="btn btn-sm btn-outline-secondary me-1" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+
+                            <!-- BOTÓN DE ELIMINAR (Rojo Institucional) -->
+                            <a href="{% url 'eliminar_carrera' carrera.id %}" 
+                               class="btn btn-sm btn-outline-danger"
+                               style="border-color: #D71920; color: #D71920;"
+                               onclick="return confirm('¿Eliminar esta carrera?');" title="Eliminar">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr id="noResultsRow">
+                        <td colspan="4" class="text-center py-4 text-muted">No hay carreras registradas.</td>
+                    </tr>
+                    {% endfor %}
+                    <!-- Fila oculta para búsqueda sin resultados -->
+                    <tr id="searchNoResults" style="display: none;">
+                        <td colspan="4" class="text-center py-4 text-muted">
+                            <i class="bi bi-search me-2"></i>No se encontraron coincidencias.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const tableBody = document.getElementById('carrerasTableBody');
+    const searchNoResults = document.getElementById('searchNoResults');
+    const sortableHeaders = document.querySelectorAll('.sortable');
+    
+    let rows = Array.from(document.querySelectorAll('.carrera-row'));
+    let currentSort = { column: null, direction: 'asc' };
+
+    // --- BÚSQUEDA ---
+    if(searchInput) {
+        searchInput.addEventListener('keyup', function() {
+            const query = this.value.toLowerCase().trim();
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const searchData = [
+                    row.getAttribute('data-nombre'),
+                    row.getAttribute('data-codigo'),
+                    row.getAttribute('data-area')
+                ].join(' ');
+
+                if (searchData.includes(query)) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            if(searchNoResults) {
+                searchNoResults.style.display = visibleCount === 0 ? '' : 'none';
+            }
+        });
+    }
+
+    // --- ORDENAMIENTO ---
+    sortableHeaders.forEach(header => {
+        header.addEventListener('click', () => {
+            const column = header.getAttribute('data-sort');
+            
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+
+            updateIcons(header);
+
+            rows.sort((a, b) => {
+                let valA = a.getAttribute('data-' + column);
+                let valB = b.getAttribute('data-' + column);
+
+                if (currentSort.direction === 'asc') {
+                    return valA.localeCompare(valB);
+                } else {
+                    return valB.localeCompare(valA);
+                }
+            });
+
+            rows.forEach(row => tableBody.appendChild(row));
+            if(searchNoResults) tableBody.appendChild(searchNoResults);
+        });
+    });
+
+    function updateIcons(activeHeader) {
+        sortableHeaders.forEach(th => {
+            const icon = th.querySelector('.sort-icon');
+            icon.className = 'bi bi-arrow-down-up sort-icon';
+            icon.style.color = '#999';
+        });
+
+        const activeIcon = activeHeader.querySelector('.sort-icon');
+        if (currentSort.direction === 'asc') {
+            activeIcon.className = 'bi bi-arrow-up sort-icon';
+        } else {
+            activeIcon.className = 'bi bi-arrow-down sort-icon';
+        }
+        // Color rojo para indicar la columna activa
+        activeIcon.style.color = '#D71920'; 
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Usuario{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0 rounded">
+                <!-- Header con Rojo INACAP -->
+                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center" style="background-color: #D71920 !important;">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-pencil-square me-2"></i>Editar Usuario</h5>
+                    <span class="badge bg-light text-danger border border-danger">{{ usuario.email }}</span>
+                </div>
+                <div class="card-body p-4">
+                    
+                    <!-- Mensajes de error -->
+                    {% if form.errors %}
+                        <div class="alert alert-danger d-flex align-items-center">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <div>
+                                <strong>Hay errores en el formulario:</strong>
+                                {{ form.non_field_errors }}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- SECCIÓN 1: DATOS PERSONALES -->
+                        <h6 class="text-danger border-bottom pb-2 mb-3" style="color: #D71920 !important;">Información Personal</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small text-secondary">Nombres</label>
+                                {{ form.first_name }}
+                                {% if form.first_name.errors %}<div class="text-danger small">{{ form.first_name.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small text-secondary">Apellidos</label>
+                                {{ form.last_name }}
+                                {% if form.last_name.errors %}<div class="text-danger small">{{ form.last_name.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small text-secondary">Email</label>
+                                {{ form.email }}
+                                {% if form.email.errors %}<div class="text-danger small">{{ form.email.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small text-secondary">RUT</label>
+                                {{ form.rut }}
+                                {% if form.rut.errors %}<div class="text-danger small">{{ form.rut.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+
+                        <!-- SECCIÓN 2: CONFIGURACIÓN DE ACCESO -->
+                        <h6 class="text-danger border-bottom pb-2 mb-3 mt-4" style="color: #D71920 !important;">Configuración de Acceso</h6>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small text-secondary">Rol de Sistema</label>
+                                {{ form.rol }} <!-- id="id_rol" -->
+                                <div class="form-text small">Define si tiene acceso al panel de administración.</div>
+                            </div>
+                            <div class="col-md-6" id="div-tipo">
+                                <label class="form-label fw-bold small text-secondary">Cargo</label>
+                                {{ form.tipo_solicitante }} <!-- Docente, Coordinador... -->
+                            </div>
+                        </div>
+
+                        <!-- SECCIÓN DINÁMICA: ÁREA -->
+                        <div id="seccion-area" class="p-3 bg-light rounded border mb-3">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-danger" style="color: #D71920 !important;">Área / Facultad Asignada</label>
+                                {{ form.area }} 
+                                {% if form.area.errors %}<div class="text-danger small">{{ form.area.errors.0 }}</div>{% endif %}
+                                <div class="form-text small">
+                                    <i class="bi bi-info-circle"></i> Asigna el área a la que pertenece el usuario (Docente, Coordinador o Admin).
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-danger btn-lg" style="background-color: #D71920 !important; border-color: #D71920;">
+                                <i class="bi bi-save me-2"></i>Guardar Cambios
+                            </button>
+                            <a href="{% url 'gestion_usuarios' %}" class="btn btn-outline-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const rolSelect = document.getElementById('id_rol');
+    const divTipo = document.getElementById('div-tipo');
+    const seccionArea = document.getElementById('seccion-area');
+
+    function updateUI() {
+        if (!rolSelect) return;
+
+        if (rolSelect.value === 'ADMIN') {
+            // Si es Admin: Ocultar Cargo, pero MOSTRAR Área
+            if(divTipo) divTipo.style.display = 'none';
+            if(seccionArea) seccionArea.style.display = 'block';
+        } else {
+            // Si es Solicitante: Mostrar Cargo y Mostrar Área
+            if(divTipo) divTipo.style.display = 'block';
+            if(seccionArea) seccionArea.style.display = 'block';
+        }
+    }
+
+    if(rolSelect) {
+        rolSelect.addEventListener('change', updateUI);
+        updateUI(); // Ejecutar al cargar para aplicar el estado actual del usuario
+    }
+});
+</script>
+{% endblock %}

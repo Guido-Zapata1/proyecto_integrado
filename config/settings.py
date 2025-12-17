@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'inventario',
     'reservas',
     'reportes',
+    "notificaciones.apps.NotificacionesConfig",
 ]
 
 MIDDLEWARE = [
@@ -110,7 +111,7 @@ USE_I18N = True
 USE_TZ = True
 
 # --- ARCHIVOS ESTÁTICOS (CSS, JS, Imágenes del sistema) ---
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 
 # Dónde busca Django archivos estáticos en desarrollo (TU CARPETA MANUAL)
 STATICFILES_DIRS = [

@@ -30,17 +30,70 @@
                 {% endfor %}
             {% endif %}
 
+            <!-- SISTEMA DE FILTROS (PESTAÑAS) -->
+            <ul class="nav nav-tabs mb-3 border-bottom-0">
+                <li class="nav-item">
+                    <a class="nav-link {% if not request.GET.estado or request.GET.estado == 'TODAS' %}active fw-bold border-bottom-0{% endif %}" 
+                       href="?estado=TODAS" 
+                       style="{% if not request.GET.estado or request.GET.estado == 'TODAS' %}border-top: 3px solid #dc3545; color: #333;{% else %}color: #666;{% endif %}">
+                       Todas
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.GET.estado == 'PENDIENTE' %}active fw-bold border-bottom-0{% endif %}" 
+                       href="?estado=PENDIENTE"
+                       style="{% if request.GET.estado == 'PENDIENTE' %}border-top: 3px solid #ffc107; color: #333;{% else %}color: #666;{% endif %}">
+                       Pendientes
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.GET.estado == 'APROBADA' %}active fw-bold border-bottom-0{% endif %}" 
+                       href="?estado=APROBADA"
+                       style="{% if request.GET.estado == 'APROBADA' %}border-top: 3px solid #198754; color: #333;{% else %}color: #666;{% endif %}">
+                       Aprobadas
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.GET.estado == 'RECHAZADA' %}active fw-bold border-bottom-0{% endif %}" 
+                       href="?estado=RECHAZADA"
+                       style="{% if request.GET.estado == 'RECHAZADA' %}border-top: 3px solid #dc3545; color: #333;{% else %}color: #666;{% endif %}">
+                       Rechazadas
+                    </a>
+                </li>
+            </ul>
+
             <div class="card shadow-sm border-0">
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <!-- ID 'tablaReservas' agregado para el script de ordenamiento -->
+                        <table class="table table-hover align-middle mb-0" id="tablaReservas">
                             <thead class="bg-light">
                                 <tr>
-                                    <th scope="col" class="ps-4">ID</th>
-                                    <th scope="col">Espacio</th>
-                                    <th scope="col">Fecha / Hora</th>
-                                    <th scope="col" class="text-center">Adjunto</th>
-                                    <th scope="col">Estado</th>
+                                    <!-- 1. ID (Ordenable) -->
+                                    <th scope="col" class="ps-4 cursor-pointer sortable text-nowrap" style="width: 80px;" onclick="sortTable(0)">
+                                        ID <i class="bi bi-arrow-down-up small text-muted ms-1" style="font-size: 0.8em;"></i>
+                                    </th>
+
+                                    <!-- 2. Espacio (Ordenable) -->
+                                    <th scope="col" class="cursor-pointer sortable" onclick="sortTable(1)">
+                                        Espacio <i class="bi bi-arrow-down-up small text-muted ms-1" style="font-size: 0.8em;"></i>
+                                    </th>
+
+                                    <!-- 3. Fecha / Hora (Ordenable) -->
+                                    <th scope="col" class="cursor-pointer sortable" onclick="sortTable(2)">
+                                        Fecha / Hora <i class="bi bi-arrow-down-up small text-muted ms-1" style="font-size: 0.8em;"></i>
+                                    </th>
+
+                                    <!-- 4. Adjunto (Ordenable: Con vs Sin) -->
+                                    <th scope="col" class="text-center cursor-pointer sortable" onclick="sortTable(3)">
+                                        Adjunto <i class="bi bi-arrow-down-up small text-muted ms-1" style="font-size: 0.8em;"></i>
+                                    </th>
+
+                                    <!-- 5. Estado (Solo visible si es 'Todas', pero siempre presente en DOM) -->
+                                    <th scope="col" class="cursor-pointer sortable" onclick="sortTable(4)">
+                                        Estado <i class="bi bi-arrow-down-up small text-muted ms-1" style="font-size: 0.8em;"></i>
+                                    </th>
+
                                     <th scope="col" class="text-end pe-4">Acciones</th>
                                 </tr>
                             </thead>
@@ -49,10 +102,12 @@
                                     {% for r in reservas %}
                                     <tr>
                                         <!-- ID -->
-                                        <td class="ps-4 fw-bold text-secondary">#{{ r.id }}</td>
+                                        <td class="ps-4 fw-bold text-secondary" data-sort="{{ r.id }}">
+                                            #{{ r.id }}
+                                        </td>
                                         
-                                        <!-- Espacio con Foto -->
-                                        <td>
+                                        <!-- Espacio (Orden por nombre) -->
+                                        <td data-sort="{{ r.espacio.nombre }}">
                                             <div class="d-flex align-items-center">
                                                 {% if r.espacio.imagen %}
                                                     <img src="{{ r.espacio.imagen.url }}" alt="Foto" class="rounded border me-3" style="width:40px; height:40px; object-fit: cover;">
@@ -68,14 +123,14 @@
                                             </div>
                                         </td>
 
-                                        <!-- Fecha y Hora -->
-                                        <td>
+                                        <!-- Fecha y Hora (Orden numérico: YYYYMMDDHHMM) -->
+                                        <td data-sort="{{ r.fecha|date:'Ymd' }}{{ r.hora_inicio|time:'Hi' }}">
                                             <div class="fw-bold text-dark">{{ r.fecha|date:"d M Y" }}</div>
                                             <div class="small text-muted">{{ r.hora_inicio|time:"H:i" }} - {{ r.hora_fin|time:"H:i" }}</div>
                                         </td>
 
-                                        <!-- Archivo Adjunto -->
-                                        <td class="text-center">
+                                        <!-- Archivo Adjunto (Orden: 1 si tiene, 0 si no) -->
+                                        <td class="text-center" data-sort="{% if r.archivo_adjunto %}1{% else %}0{% endif %}">
                                             {% if r.archivo_adjunto %}
                                                 <div class="btn-group" role="group">
                                                     <a href="{{ r.archivo_adjunto.url }}" target="_blank" class="btn btn-sm btn-outline-primary border-0" title="Ver">
@@ -90,8 +145,8 @@
                                             {% endif %}
                                         </td>
 
-                                        <!-- Estado -->
-                                        <td>
+                                        <!-- Estado (Orden alfabético del estado) -->
+                                        <td data-sort="{{ r.estado }}">
                                             {% if r.estado == 'PENDIENTE' %}
                                                 <span class="badge bg-warning text-dark rounded-pill px-3">En Revisión</span>
                                             {% elif r.estado == 'APROBADA' %}
@@ -101,16 +156,16 @@
                                             {% else %}
                                                 <span class="badge bg-secondary rounded-pill px-3">Cancelada</span>
                                             {% endif %}
-
-                                            <!-- MUESTRA MOTIVO SI EXISTE -->
+                                            
+                                            <!-- Motivo de cancelación -->
                                             {% if r.motivo_cancelacion %}
-                                                <div class="mt-1 text-muted fst-italic" style="font-size: 0.75rem; max-width: 150px; line-height: 1.2;">
+                                                <div class="mt-1 text-danger small fst-italic" style="font-size: 0.75rem; line-height: 1.2;">
                                                     <i class="bi bi-info-circle me-1"></i>{{ r.motivo_cancelacion|truncatechars:50 }}
                                                 </div>
                                             {% endif %}
                                         </td>
 
-                                        <!-- Acciones -->
+                                        <!-- Acciones (TU DISEÑO PRESERVADO) -->
                                         <td class="text-end pe-4">
                                             <div class="btn-group">
                                                 <a href="{% url 'reservas:detalle' r.id %}" class="btn btn-sm btn-light border" title="Ver Detalle">
@@ -122,7 +177,6 @@
                                                         <i class="bi bi-pencil text-warning"></i>
                                                     </a>
                                                     
-                                                    <!-- Botón Eliminar (Pendiente) -->
                                                     <form id="form-eliminar-{{ r.id }}" method="post" action="{% url 'reservas:cancelar' r.id %}" class="d-inline">
                                                         {% csrf_token %}
                                                         <button type="button" class="btn btn-sm btn-light border" title="Eliminar" onclick="confirmarAccion('{{ r.id }}', 'eliminar')">
@@ -131,11 +185,9 @@
                                                     </form>
 
                                                 {% else %}
-                                                    <!-- Si no es pendiente, deshabilita edición -->
                                                     <button disabled class="btn btn-sm btn-light border opacity-50"><i class="bi bi-pencil"></i></button>
                                                     
                                                     {% if r.estado == 'APROBADA' %}
-                                                        <!-- Botón Cancelar (Aprobada) -->
                                                         <form id="form-cancelar-{{ r.id }}" method="post" action="{% url 'reservas:cancelar' r.id %}" class="d-inline">
                                                             {% csrf_token %}
                                                             <button type="button" class="btn btn-sm btn-light border" title="Cancelar Reserva" onclick="confirmarAccion('{{ r.id }}', 'cancelar')">
@@ -175,7 +227,8 @@
                             <ul class="pagination justify-content-end mb-0">
                                 {% if page_obj.has_previous %}
                                     <li class="page-item">
-                                        <a class="page-link border-0 text-secondary" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                                        <!-- CORRECCIÓN: Se mantiene el estado al paginar -->
+                                        <a class="page-link border-0 text-secondary" href="?page={{ page_obj.previous_page_number }}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}">Anterior</a>
                                     </li>
                                 {% else %}
                                     <li class="page-item disabled"><span class="page-link border-0">Anterior</span></li>
@@ -187,7 +240,8 @@
 
                                 {% if page_obj.has_next %}
                                     <li class="page-item">
-                                        <a class="page-link border-0 text-primary fw-bold" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+                                        <!-- CORRECCIÓN: Se mantiene el estado al paginar -->
+                                        <a class="page-link border-0 text-primary fw-bold" href="?page={{ page_obj.next_page_number }}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}">Siguiente</a>
                                     </li>
                                 {% else %}
                                     <li class="page-item disabled"><span class="page-link border-0">Siguiente</span></li>
@@ -205,16 +259,64 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- SweetAlert2 para las confirmaciones bonitas -->
+<!-- SweetAlert2 para las confirmaciones -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+    .cursor-pointer { cursor: pointer; }
+    .sortable:hover { background-color: #f1f1f1; user-select: none; }
+    .nav-tabs .nav-link { border: 1px solid transparent; border-bottom: none; }
+    .nav-tabs .nav-link:hover { border-color: #e9ecef #e9ecef #dee2e6; isolation: isolate; }
+    .nav-tabs .nav-link.active { background-color: #fff; border-color: #dee2e6 #dee2e6 #fff; }
+</style>
 
 <script>
+    // --- FUNCIÓN DE ORDENAMIENTO (ALFABÉTICO Y NUMÉRICO) ---
+    function sortTable(n) {
+        var table = document.getElementById("tablaReservas");
+        var rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
+        switching = true;
+        dir = "asc"; 
+        
+        while (switching) {
+            switching = false;
+            var tbody = table.getElementsByTagName("tbody")[0];
+            rows = tbody.getElementsByTagName("tr");
+            
+            for (i = 0; i < (rows.length - 1); i++) {
+                shouldSwitch = false;
+                x = rows[i].getElementsByTagName("TD")[n];
+                y = rows[i + 1].getElementsByTagName("TD")[n];
+                
+                var xVal = (x.getAttribute("data-sort") || x.innerText).toLowerCase();
+                var yVal = (y.getAttribute("data-sort") || y.innerText).toLowerCase();
+                
+                var isNum = !isNaN(xVal) && !isNaN(yVal) && xVal.trim() !== "";
+
+                if (dir == "asc") {
+                    if (isNum ? (parseFloat(xVal) > parseFloat(yVal)) : (xVal > yVal)) { shouldSwitch = true; break; }
+                } else if (dir == "desc") {
+                    if (isNum ? (parseFloat(xVal) < parseFloat(yVal)) : (xVal < yVal)) { shouldSwitch = true; break; }
+                }
+            }
+            if (shouldSwitch) {
+                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                switching = true;
+                switchcount++;
+            } else {
+                if (switchcount == 0 && dir == "asc") {
+                    dir = "desc";
+                    switching = true;
+                }
+            }
+        }
+    }
+
+    // --- FUNCIÓN DE ACCIONES (SWEETALERT) ---
     function confirmarAccion(id, tipo) {
         if (tipo === 'eliminar') {
-            // Caso: Eliminar reserva PENDIENTE (Confirmación simple)
             Swal.fire({
                 title: '¿Eliminar solicitud?',
-                text: "Esta solicitud aún no ha sido aprobada. Se eliminará permanentemente.",
+                text: "Se eliminará permanentemente.",
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc3545',
@@ -222,35 +324,23 @@
                 confirmButtonText: 'Sí, eliminar',
                 cancelButtonText: 'Volver'
             }).then((result) => {
-                if (result.isConfirmed) {
-                    document.getElementById('form-eliminar-' + id).submit();
-                }
+                if (result.isConfirmed) document.getElementById('form-eliminar-' + id).submit();
             });
         } else if (tipo === 'cancelar') {
-            // Caso: Cancelar reserva APROBADA (Requiere motivo)
             Swal.fire({
                 title: 'Cancelar Reserva',
-                text: "Para cancelar una reserva ya aprobada, debes indicar un motivo:",
+                text: "Indica el motivo:",
                 input: 'textarea',
-                inputPlaceholder: 'Escribe la razón...',
-                inputAttributes: {
-                    'aria-label': 'Escribe la razón de la cancelación'
-                },
+                inputPlaceholder: 'Escribe aquí...',
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc3545',
                 cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Confirmar Cancelación',
-                cancelButtonText: 'Volver',
-                inputValidator: (value) => {
-                    if (!value) {
-                        return 'Debes escribir un motivo para cancelar.';
-                    }
-                }
+                confirmButtonText: 'Confirmar',
+                inputValidator: (value) => { if (!value) return '¡Debes escribir un motivo!'; }
             }).then((result) => {
                 if (result.isConfirmed) {
                     const form = document.getElementById('form-cancelar-' + id);
-                    // Creamos un input oculto dinámico para enviar el motivo
                     const inputMotivo = document.createElement('input');
                     inputMotivo.type = 'hidden';
                     inputMotivo.name = 'motivo_cancelacion';
@@ -263,3 +353,32 @@
     }
 </script>
 {% endblock %}
+```
+
+### 2. Corrección de la Vista (`reservas/views.py`)
+Ahora, copia y pega este código en `reservas/views.py`. Busca la función `listar_reservas` y reemplázala por esta versión que sí filtra.
+
+```python
+# En reservas/views.py
+
+@login_required
+def listar_reservas(request):
+    # 1. Recuperar el filtro de la URL
+    estado_filter = request.GET.get('estado', 'TODAS')
+    
+    # 2. Query Base
+    qs = Reserva.objects.filter(solicitante=request.user).order_by('-fecha', '-hora_inicio')
+    
+    # 3. Aplicar Filtro si no es 'TODAS'
+    if estado_filter != 'TODAS':
+        qs = qs.filter(estado=estado_filter)
+    
+    # 4. Paginación
+    paginator = Paginator(qs, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'reservas/listar_reservas.html', {
+        'reservas': page_obj.object_list,
+        'page_obj': page_obj,
+    })
