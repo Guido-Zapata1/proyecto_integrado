@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="container-fluid py-4">
-    
+
     <!-- Encabezado -->
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
         <h1 class="h2" style="color: #333333;"><i class="bi bi-list-check me-2"></i> Gestión de Solicitudes</h1>
@@ -60,44 +60,34 @@
             <table class="table table-hover align-middle mb-0" id="tablaAdmin">
                 <thead class="bg-light">
                     <tr>
-                        <!-- 1. ID (Ordenable) -->
                         <th scope="col" class="ps-4 cursor-pointer sortable" onclick="sortTable(0)" style="width: 80px;">
                             ID <i class="bi bi-arrow-down-up small text-muted ms-1"></i>
                         </th>
-                        
-                        <!-- 2. Solicitante -->
                         <th scope="col" class="cursor-pointer sortable" onclick="sortTable(1)">
                             Solicitante <i class="bi bi-arrow-down-up small text-muted ms-1"></i>
                         </th>
-
-                        <!-- 3. NUEVO: Área (Ordenable) -->
                         <th scope="col" class="cursor-pointer sortable" onclick="sortTable(2)">
                             Área <i class="bi bi-arrow-down-up small text-muted ms-1"></i>
                         </th>
-                        
-                        <!-- 4. Espacio -->
                         <th scope="col" class="cursor-pointer sortable" onclick="sortTable(3)">
+                            Carrera <i class="bi bi-arrow-down-up small text-muted ms-1"></i>
+                        </th>
+                        <th scope="col" class="cursor-pointer sortable" onclick="sortTable(4)">
                             Espacio <i class="bi bi-arrow-down-up small text-muted ms-1"></i>
                         </th>
-
-                        <!-- 5. Fecha -->
-                        <th scope="col" class="cursor-pointer sortable" onclick="sortTable(4)">
+                        <th scope="col" class="cursor-pointer sortable" onclick="sortTable(5)">
                             Fecha <i class="bi bi-arrow-down-up small text-muted ms-1"></i>
                         </th>
-
-                        <!-- 6. Adjunto -->
-                        <th scope="col" class="text-center cursor-pointer sortable" onclick="sortTable(5)">
+                        <th scope="col" class="text-center cursor-pointer sortable" onclick="sortTable(6)">
                             Adj. <i class="bi bi-arrow-down-up small text-muted ms-1"></i>
                         </th>
-
-                        <!-- 7. Estado -->
-                        <th scope="col" class="cursor-pointer sortable" onclick="sortTable(6)">
+                        <th scope="col" class="cursor-pointer sortable" onclick="sortTable(7)">
                             Estado <i class="bi bi-arrow-down-up small text-muted ms-1"></i>
                         </th>
-                        
                         <th scope="col" class="text-end pe-4">Acciones</th>
                     </tr>
                 </thead>
+
                 <tbody>
                     {% for reserva in reservas %}
                     <tr>
@@ -105,7 +95,7 @@
                         <td class="ps-4 fw-bold text-secondary" data-sort="{{ reserva.id }}">
                             #{{ reserva.id }}
                         </td>
-                        
+
                         <!-- 2. Solicitante -->
                         <td data-sort="{{ reserva.solicitante.email }}">
                             <div class="d-flex flex-column">
@@ -114,14 +104,23 @@
                             </div>
                         </td>
 
-                        <!-- 3. NUEVO: Área -->
+                        <!-- 3. Área -->
                         <td data-sort="{{ reserva.solicitante.nombre_area }}">
                             <span class="badge bg-light text-danger border border-danger-subtle" style="color: #D71920 !important;">
                                 {{ reserva.solicitante.nombre_area }}
                             </span>
                         </td>
 
-                        <!-- 4. Espacio -->
+                        <!-- 4. Carrera -->
+                        <td data-sort="{% if reserva.solicitante.carrera %}{{ reserva.solicitante.carrera.nombre }}{% else %}zzz{% endif %}">
+                            {% if reserva.solicitante.carrera %}
+                                <span class="text-muted small">{{ reserva.solicitante.carrera.nombre }}</span>
+                            {% else %}
+                                <span class="text-muted small">Sin Carrera</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- 5. Espacio -->
                         <td data-sort="{{ reserva.espacio.nombre }}">
                             <div class="d-flex align-items-center">
                                 {% if reserva.espacio.imagen %}
@@ -134,28 +133,34 @@
                             {% endif %}
                         </td>
 
-                        <!-- 5. Fecha (Orden YYYYMMDDHHMM) -->
+                        <!-- 6. Fecha -->
                         <td data-sort="{{ reserva.fecha|date:'Ymd' }}{{ reserva.hora_inicio|time:'Hi' }}">
                             <div class="fw-bold">{{ reserva.fecha|date:"d M Y" }}</div>
                             <div class="small text-muted">{{ reserva.hora_inicio|time:"H:i" }} - {{ reserva.hora_fin|time:"H:i" }}</div>
                         </td>
-                        
-                        <!-- 6. Adjunto -->
-                        <td class="text-center" data-sort="{% if reserva.archivo_adjunto %}1{% else %}0{% endif %}">
+
+                        <!-- ✅ 7. Adjunto (no revienta si el archivo no existe) -->
+                        <td class="text-center" data-sort="{% if reserva.adjunto_ok %}1{% else %}0{% endif %}">
                             {% if reserva.archivo_adjunto %}
-                                <a href="{{ reserva.archivo_adjunto.url }}" target="_blank" class="text-decoration-none" title="Ver Archivo">
-                                    {% if '.pdf' in reserva.archivo_adjunto.name %}
-                                        <i class="bi bi-file-earmark-pdf-fill text-danger fs-4"></i>
-                                    {% else %}
-                                        <i class="bi bi-file-earmark-excel-fill text-success fs-4"></i>
-                                    {% endif %}
-                                </a>
+                                {% if reserva.adjunto_ok %}
+                                    <a href="{{ reserva.archivo_adjunto.url }}" target="_blank" class="text-decoration-none" title="Ver Archivo">
+                                        {% if '.pdf' in reserva.archivo_adjunto.name|lower %}
+                                            <i class="bi bi-file-earmark-pdf-fill text-danger fs-4"></i>
+                                        {% elif '.xls' in reserva.archivo_adjunto.name|lower or '.xlsx' in reserva.archivo_adjunto.name|lower %}
+                                            <i class="bi bi-file-earmark-excel-fill text-success fs-4"></i>
+                                        {% else %}
+                                            <i class="bi bi-file-earmark-text-fill text-secondary fs-4"></i>
+                                        {% endif %}
+                                    </a>
+                                {% else %}
+                                    <span class="badge bg-secondary">Adjunto eliminado</span>
+                                {% endif %}
                             {% else %}
                                 <span class="text-muted opacity-25">-</span>
                             {% endif %}
                         </td>
 
-                        <!-- 7. Estado -->
+                        <!-- 8. Estado -->
                         <td data-sort="{{ reserva.estado }}">
                             {% if reserva.estado == 'PENDIENTE' %}
                                 <span class="badge bg-warning text-dark">EN REVISIÓN</span>
@@ -167,15 +172,14 @@
                                 <span class="badge bg-secondary">CANCELADA</span>
                             {% endif %}
                         </td>
-                        
-                        <!-- 8. Acciones -->
+
+                        <!-- 9. Acciones -->
                         <td class="text-end pe-4">
                             <!-- Botón VER DETALLE -->
                             <button type="button" class="btn btn-sm btn-primary me-1" data-bs-toggle="modal" data-bs-target="#modalDetalle{{ reserva.id }}">
                                 <i class="bi bi-eye"></i>
                             </button>
 
-                            <!-- Acciones para Pendientes -->
                             {% if reserva.estado == 'PENDIENTE' %}
                                 <form method="post" action="{% url 'aprobar_reserva' reserva.id %}" class="d-inline">
                                     {% csrf_token %}
@@ -186,8 +190,6 @@
                                         <i class="bi bi-x-lg"></i>
                                     </button>
                                 </form>
-                            
-                            <!-- Acciones para Aprobadas (Cancelar Forzosamente) -->
                             {% elif reserva.estado == 'APROBADA' %}
                                 <form id="form-cancelar-{{ reserva.id }}" method="post" action="{% url 'cancelar_forzosamente' reserva.id %}" class="d-inline">
                                     {% csrf_token %}
@@ -199,7 +201,7 @@
                         </td>
                     </tr>
 
-                    <!-- MODAL DE DETALLE (ACTUALIZADO CON ÁREA) -->
+                    <!-- MODAL DETALLE -->
                     <div class="modal fade" id="modalDetalle{{ reserva.id }}" tabindex="-1" aria-hidden="true">
                         <div class="modal-dialog modal-xl">
                             <div class="modal-content">
@@ -207,23 +209,42 @@
                                     <h5 class="modal-title fw-bold">Solicitud #{{ reserva.id }}</h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                 </div>
+
                                 <div class="modal-body">
                                     <div class="row">
                                         <!-- Datos Izquierda -->
                                         <div class="col-md-5 border-end">
                                             <h6 class="text-primary fw-bold mb-3">Datos Generales</h6>
-                                            <div class="mb-2"><strong>Solicitante:</strong> <span class="text-secondary">{{ reserva.solicitante.get_full_name|default:reserva.solicitante.email }}</span></div>
-                                            <div class="mb-2"><strong>Email:</strong> <span class="text-secondary">{{ reserva.solicitante.email }}</span></div>
-                                            
-                                            <!-- NUEVO: Área en Detalle -->
+
                                             <div class="mb-2">
-                                                <strong>Área Académica:</strong> 
-                                                <span class="text-danger fw-bold" style="color: #D71920 !important;">{{ reserva.solicitante.nombre_area }}</span>
+                                                <strong>Solicitante:</strong>
+                                                <span class="text-secondary">{{ reserva.solicitante.get_full_name|default:reserva.solicitante.email }}</span>
+                                            </div>
+
+                                            <div class="mb-2">
+                                                <strong>Email:</strong>
+                                                <span class="text-secondary">{{ reserva.solicitante.email }}</span>
+                                            </div>
+
+                                            <div class="mb-2">
+                                                <strong>Área Académica:</strong>
+                                                <span class="text-danger fw-bold" style="color: #D71920 !important;">
+                                                    {{ reserva.solicitante.nombre_area }}
+                                                </span>
+                                            </div>
+
+                                            <div class="mb-2">
+                                                <strong>Carrera:</strong>
+                                                {% if reserva.solicitante.carrera %}
+                                                    <span class="text-secondary">{{ reserva.solicitante.carrera.nombre }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">Sin Carrera</span>
+                                                {% endif %}
                                             </div>
 
                                             <div class="mb-2"><strong>Espacio:</strong> {{ reserva.espacio.nombre }}</div>
                                             <div class="mb-2"><strong>Fecha:</strong> {{ reserva.fecha }} ({{ reserva.hora_inicio }} - {{ reserva.hora_fin }})</div>
-                                            
+
                                             <div class="mt-3">
                                                 <strong>Motivo:</strong>
                                                 <div class="p-2 bg-light border rounded mt-1 small fst-italic">{{ reserva.motivo }}</div>
@@ -255,22 +276,55 @@
                                         <!-- Documentación Derecha -->
                                         <div class="col-md-7">
                                             <h6 class="text-primary fw-bold mb-3">Documentación Adjunta</h6>
+
                                             {% if reserva.archivo_adjunto %}
-                                                <div class="d-grid gap-2 mb-3">
-                                                    <a href="{{ reserva.archivo_adjunto.url }}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right"></i> Nueva Pestaña</a>
-                                                    <a href="{{ reserva.archivo_adjunto.url }}" download class="btn btn-sm btn-outline-dark"><i class="bi bi-download"></i> Descargar</a>
-                                                </div>
-                                                
-                                                {% if '.pdf' in reserva.archivo_adjunto.name %}
-                                                    <div class="card bg-light border-0 shadow-sm">
-                                                        <div class="card-body p-0" style="height: 500px;">
-                                                            <iframe src="{{ reserva.archivo_adjunto.url }}" width="100%" height="100%" style="border:none;"></iframe>
-                                                        </div>
+                                                {% if reserva.adjunto_ok %}
+
+                                                    <div class="d-grid gap-2 mb-3">
+                                                        <a href="{{ reserva.archivo_adjunto.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                            <i class="bi bi-box-arrow-up-right"></i> Nueva Pestaña
+                                                        </a>
+                                                        <a href="{{ reserva.archivo_adjunto.url }}" download class="btn btn-sm btn-outline-dark">
+                                                            <i class="bi bi-download"></i> Descargar
+                                                        </a>
                                                     </div>
+
+                                                    {% if '.pdf' in reserva.archivo_adjunto.name|lower %}
+                                                        <div class="card bg-light border-0 shadow-sm">
+                                                            <div class="card-body p-0" style="height: 500px;">
+                                                                <iframe src="{{ reserva.archivo_adjunto.url }}" width="100%" height="100%" style="border:none;"></iframe>
+                                                            </div>
+                                                        </div>
+
+                                                    {% elif '.xls' in reserva.archivo_adjunto.name|lower or '.xlsx' in reserva.archivo_adjunto.name|lower %}
+                                                        <div class="alert alert-warning small">
+                                                            <i class="bi bi-exclamation-triangle me-1"></i>
+                                                            Vista previa Excel funciona si el archivo es accesible por URL (sin login). Si no aparece, descárgalo.
+                                                        </div>
+
+                                                        <div class="card bg-light border-0 shadow-sm">
+                                                            <div class="card-body p-0" style="height: 500px;">
+                                                                <iframe
+                                                                    src="https://view.officeapps.live.com/op/embed.aspx?src={{ request.build_absolute_uri|urlencode }}{{ reserva.archivo_adjunto.url|urlencode }}"
+                                                                    width="100%" height="100%" style="border:none;">
+                                                                </iframe>
+                                                            </div>
+                                                        </div>
+
+                                                    {% else %}
+                                                        <div class="alert alert-warning text-center mt-4">
+                                                            <i class="bi bi-file-earmark-text fs-1 d-block mb-2"></i>
+                                                            <p class="small mb-0">No hay vista previa para este tipo de archivo.</p>
+                                                        </div>
+                                                    {% endif %}
+
                                                 {% else %}
-                                                    <div class="alert alert-warning text-center mt-4">
-                                                        <i class="bi bi-file-earmark-excel fs-1 d-block mb-2"></i>
-                                                        <p class="small mb-0">Vista previa solo disponible para PDF.</p>
+                                                    <div class="alert alert-secondary d-flex align-items-center">
+                                                        <i class="bi bi-file-earmark-x fs-4 me-2"></i>
+                                                        <div>
+                                                            <strong>Adjunto eliminado</strong><br>
+                                                            <span class="small">El archivo fue borrado del servidor/PC, por eso ya no está disponible.</span>
+                                                        </div>
                                                     </div>
                                                 {% endif %}
                                             {% else %}
@@ -282,6 +336,7 @@
                                         </div>
                                     </div>
                                 </div>
+
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                                 </div>
@@ -292,7 +347,7 @@
 
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-5">
+                        <td colspan="9" class="text-center text-muted py-5">
                             <i class="bi bi-inbox fs-1 d-block mb-3"></i>
                             No hay solicitudes que coincidan con los filtros.
                         </td>
@@ -308,33 +363,32 @@
 {% block extra_js %}
 <!-- SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<!-- Estilos para sort -->
+
 <style>
     .cursor-pointer { cursor: pointer; }
     .sortable:hover { background-color: #f1f1f1; user-select: none; }
 </style>
 
 <script>
-    // --- FUNCIÓN DE ORDENAMIENTO (ALFABÉTICO Y NUMÉRICO) ---
     function sortTable(n) {
         var table = document.getElementById("tablaAdmin");
         var rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
         switching = true;
-        dir = "asc"; 
-        
+        dir = "asc";
+
         while (switching) {
             switching = false;
             var tbody = table.getElementsByTagName("tbody")[0];
             rows = tbody.getElementsByTagName("tr");
-            
+
             for (i = 0; i < (rows.length - 1); i++) {
                 shouldSwitch = false;
                 x = rows[i].getElementsByTagName("TD")[n];
                 y = rows[i + 1].getElementsByTagName("TD")[n];
-                
+
                 var xVal = (x.getAttribute("data-sort") || x.innerText).toLowerCase();
                 var yVal = (y.getAttribute("data-sort") || y.innerText).toLowerCase();
-                
+
                 var xNum = parseFloat(xVal);
                 var yNum = parseFloat(yVal);
                 var isNum = !isNaN(xNum) && !isNaN(yNum) && xVal.trim() !== "";
@@ -358,7 +412,6 @@
         }
     }
 
-    // --- FUNCIÓN CANCELAR FORZOSO (SweetAlert) ---
     function confirmarCancelacion(id) {
         Swal.fire({
             title: 'Cancelar Forzosamente',

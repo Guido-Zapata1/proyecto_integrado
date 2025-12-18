@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'base.html' %} 
 
 {% block content %}
 <style>
@@ -8,6 +8,7 @@
     .hover-card:hover { transform: translateY(-5px); box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important; }
     .card-icon-bg { width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 50%; margin: 0 auto 0.5rem; }
     .chart-container { position: relative; height: 250px; width: 100%; }
+    .kpi-title { font-size: 0.72rem; letter-spacing: .05em; text-transform: uppercase; color: #6c757d; font-weight: 700; }
 </style>
 
 <div class="container-fluid mt-4">
@@ -16,7 +17,6 @@
             <h2 class="mb-0" style="color: #333;">Panel de Control</h2>
             <span class="text-muted small">Resumen de operaciones y estadísticas</span>
         </div>
-        <!-- BOTÓN EXPORTAR EXCEL AGREGADO -->
         <div>
             <a href="{% url 'export_reservas_excel' %}" class="btn btn-success shadow-sm">
                 <i class="bi bi-file-earmark-excel me-2"></i>Descargar Reporte General
@@ -26,7 +26,7 @@
 
     <!-- FILA 1: KPIs (Resumen) -->
     <div class="row mb-4 g-3">
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card text-dark bg-warning bg-opacity-10 border-warning shadow-sm h-100">
                 <div class="card-body d-flex justify-content-between align-items-center">
                     <div>
@@ -37,7 +37,8 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+
+        <div class="col-md-4">
             <div class="card text-dark bg-success bg-opacity-10 border-success shadow-sm h-100">
                 <div class="card-body d-flex justify-content-between align-items-center">
                     <div>
@@ -48,7 +49,8 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+
+        <div class="col-md-4">
             <div class="card text-dark bg-danger bg-opacity-10 border-danger shadow-sm h-100">
                 <div class="card-body d-flex justify-content-between align-items-center">
                     <div>
@@ -59,14 +61,95 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-dark bg-light border-0 shadow-sm h-100">
-                <div class="card-body d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="text-uppercase text-muted small fw-bold">Recursos Críticos</h6>
-                        <h2 class="mb-0 fw-bold {% if critical_resources > 0 %}text-danger{% else %}text-success{% endif %}">{{ critical_resources }}</h2>
+    </div>
+
+    <!-- FILA NUEVA: INSIGHTS (Carreras/Fechas) -->
+    <h5 class="mb-3 text-secondary border-bottom pb-2">Insights Académicos</h5>
+    <div class="row mb-4 g-3">
+        <!-- Carrera con más reservas -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card shadow-sm border-0 h-100 hover-card">
+                <div class="card-body d-flex gap-3 align-items-center">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center bg-light" style="width:52px;height:52px;">
+                        <i class="bi bi-mortarboard-fill fs-4 text-inacap"></i>
                     </div>
-                    <i class="bi bi-exclamation-triangle fs-1 text-secondary opacity-25"></i>
+                    <div class="flex-grow-1">
+                        <div class="kpi-title">Carrera con más reservas</div>
+                        <div class="fw-bold text-dark text-truncate" title="{{ kpi_carrera_mas_reservas_nombre|default:'N/A' }}">
+                            {{ kpi_carrera_mas_reservas_nombre|default:"N/A" }}
+                        </div>
+                        <div class="small text-muted">
+                            Total: <span class="fw-bold">{{ kpi_carrera_mas_reservas_total|default:0 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Carrera con más stock -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card shadow-sm border-0 h-100 hover-card">
+                <div class="card-body d-flex gap-3 align-items-center">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center bg-light" style="width:52px;height:52px;">
+                        <i class="bi bi-box-seam-fill fs-4 text-secondary"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="kpi-title">Carrera con más consumo</div>
+                        <div class="fw-bold text-dark text-truncate" title="{{ kpi_carrera_mas_stock_nombre|default:'N/A' }}">
+                            {{ kpi_carrera_mas_stock_nombre|default:"N/A" }}
+                        </div>
+                        <div class="small text-muted">
+                            Cantidad: <span class="fw-bold">{{ kpi_carrera_mas_stock_total|default:0 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fecha con más reservas -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card shadow-sm border-0 h-100 hover-card">
+                <div class="card-body d-flex gap-3 align-items-center">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center bg-light" style="width:52px;height:52px;">
+                        <i class="bi bi-calendar-event-fill fs-4 text-success"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="kpi-title">Fecha con más reservas</div>
+                        <div class="fw-bold text-dark">
+                            {% if kpi_fecha_mas_reservas %}
+                                {{ kpi_fecha_mas_reservas|date:"d \\d\\e F, Y" }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </div>
+                        <div class="small text-muted">
+                            Total: <span class="fw-bold">{{ kpi_fecha_mas_reservas_total|default:0 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fecha con más stock -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card shadow-sm border-0 h-100 hover-card">
+                <div class="card-body d-flex gap-3 align-items-center">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center bg-light" style="width:52px;height:52px;">
+                        <i class="bi bi-graph-up-arrow fs-4 text-primary"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="kpi-title">Fecha con más consumo</div>
+                        <div class="fw-bold text-dark">
+                            {% if kpi_fecha_mas_stock %}
+                                {{ kpi_fecha_mas_stock|date:"d \\d\\e F, Y" }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </div>
+                        <div class="small text-muted">
+                            Cantidad: <span class="fw-bold">{{ kpi_fecha_mas_stock_total|default:0 }}</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -116,7 +199,7 @@
     <!-- FILA 3: ANALÍTICAS Y GRÁFICOS -->
     <h5 class="mb-3 text-secondary border-bottom pb-2">Analíticas del Sistema</h5>
     <div class="row g-4">
-        
+
         <!-- Gráfico 1: Actividad Semanal -->
         <div class="col-lg-6">
             <div class="card shadow-sm border-0 h-100">
@@ -152,17 +235,16 @@
                 </div>
             </div>
         </div>
+
     </div>
 </div>
 
-<!-- Scripts de Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Configuración común
     Chart.defaults.font.family = '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
     Chart.defaults.color = '#666';
 
-    // 1. Gráfico de Línea (Actividad)
+    // 1) Actividad
     const ctx1 = document.getElementById('reservasChart');
     if(ctx1){
         new Chart(ctx1, {
@@ -172,14 +254,14 @@
                 datasets: [{
                     label: 'Solicitudes',
                     data: {{ chart_data|safe }},
-                    borderColor: '#D71920', // Rojo INACAP
+                    borderColor: '#D71920',
                     backgroundColor: 'rgba(215, 25, 32, 0.1)',
                     tension: 0.3,
                     fill: true,
                     pointBackgroundColor: '#D71920'
                 }]
             },
-            options: { 
+            options: {
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
@@ -190,7 +272,7 @@
         });
     }
 
-    // 2. Gráfico de Barras (Top Recursos)
+    // 2) Top Recursos
     const ctx2 = document.getElementById('recursosChart');
     if(ctx2){
         new Chart(ctx2, {
@@ -200,12 +282,12 @@
                 datasets: [{
                     label: 'Cantidad',
                     data: {{ recursos_data|safe }},
-                    backgroundColor: '#4a4a4a', // Gris oscuro
+                    backgroundColor: '#4a4a4a',
                     borderRadius: 4
                 }]
             },
             options: {
-                indexAxis: 'y', // Barra horizontal
+                indexAxis: 'y',
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: { x: { beginAtZero: true } }
@@ -213,7 +295,7 @@
         });
     }
 
-    // 3. Gráfico de Donut (Áreas)
+    // 3) Áreas
     const ctx3 = document.getElementById('areasChart');
     if(ctx3){
         new Chart(ctx3, {
@@ -223,19 +305,19 @@
                 datasets: [{
                     data: {{ areas_data|safe }},
                     backgroundColor: [
-                        '#D71920', // Rojo
-                        '#333333', // Gris Oscuro
-                        '#888888', // Gris Medio
-                        '#cccccc', // Gris Claro
-                        '#f8f9fa'  // Casi blanco
+                        '#D71920',
+                        '#333333',
+                        '#888888',
+                        '#cccccc',
+                        '#f8f9fa'
                     ],
                     borderWidth: 0
                 }]
             },
             options: {
                 maintainAspectRatio: false,
-                plugins: { 
-                    legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } 
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }
                 },
                 cutout: '70%'
             }

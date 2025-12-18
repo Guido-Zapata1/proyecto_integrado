@@ -4,151 +4,176 @@
 
 {% block content %}
 <div class="container mt-4">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow-sm border-0 rounded">
-                <div class="card-header bg-danger text-white text-center fw-bold">
-                    <i class="bi bi-person-plus-fill me-2"></i>Crear Nuevo Usuario
-                </div>
-                <div class="card-body p-4">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card shadow-sm border-0 rounded">
 
-                    <!-- Mensajes de Error Generales -->
-                    {% if form.non_field_errors %}
-                        <div class="alert alert-danger d-flex align-items-center" role="alert">
-                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                            <div>
-                                {% for error in form.non_field_errors %}
-                                    {{ error }}<br>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    {% endif %}
-
-                    <form method="POST">
-                        {% csrf_token %}
-
-                        <!-- SECCIÓN 1: DATOS PERSONALES -->
-                        <h6 class="text-primary border-bottom pb-2 mb-3">Datos Personales</h6>
-                        
-                        <div class="mb-3">
-                            <label class="form-label fw-bold small text-secondary">Correo Electrónico</label>
-                            <input type="email" name="email" class="form-control {% if form.email.errors %}is-invalid{% endif %}" 
-                                placeholder="ejemplo@inacap.cl" required 
-                                value="{{ form.email.value|default:'' }}">
-                            {% if form.email.errors %}
-                                <div class="invalid-feedback">{{ form.email.errors.0 }}</div>
-                            {% endif %}
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold small text-secondary">Nombres</label>
-                                <input type="text" name="first_name" class="form-control" required value="{{ form.first_name.value|default:'' }}">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold small text-secondary">Apellidos</label>
-                                <input type="text" name="last_name" class="form-control" required value="{{ form.last_name.value|default:'' }}">
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold small text-secondary">RUT</label>
-                            <input type="text" name="rut" class="form-control" placeholder="12.345.678-9" value="{{ form.rut.value|default:'' }}">
-                        </div>
-
-                        <!-- SECCIÓN 2: PERFIL ACADÉMICO -->
-                        <h6 class="text-primary border-bottom pb-2 mb-3 mt-4">Perfil en el Sistema</h6>
-                        
-                        <div class="row">
-                            <!-- ROL DE SISTEMA -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold small text-secondary">Rol de Acceso</label>
-                                {{ form.rol }} <!-- id="id_rol" -->
-                                <div class="form-text small">Define permisos de administración.</div>
-                            </div>
-
-                            <!-- CARGO (Solo visible si es Solicitante) -->
-                            <div class="col-md-6 mb-3" id="div_tipo_solicitante">
-                                <label class="form-label fw-bold small text-secondary">Cargo / Función</label>
-                                {{ form.tipo_solicitante }}
-                            </div>
-                        </div>
-
-                        <!-- ÁREA ACADÉMICA (Visible para Docentes/Coordinadores Y ADMINISTRADORES) -->
-                        <div id="seccion_area" class="p-3 bg-light rounded border mb-3">
-                            <div class="mb-3">
-                                <label class="form-label fw-bold text-danger">Área (Obligatorio)</label>
-                                {{ form.area }} 
-                                {% if form.area.errors %}
-                                    <div class="text-danger small">{{ form.area.errors.0 }}</div>
-                                {% endif %}
-                                <div class="form-text small">
-                                    <i class="bi bi-info-circle"></i> Asigna el área a la que pertenece el usuario (Docente, Coordinador o Admin).
-                                </div>
-                            </div>
-                            
-                            <!-- Campo carrera oculto (no se usa para docentes) -->
-                            <div class="d-none">
-                                {{ form.carrera }}
-                            </div>
-                        </div>
-
-                        <!-- SECCIÓN 3: SEGURIDAD -->
-                        <h6 class="text-primary border-bottom pb-2 mb-3 mt-4">Seguridad</h6>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold small text-secondary">Contraseña</label>
-                                <input type="password" name="password" class="form-control {% if form.password.errors %}is-invalid{% endif %}" required>
-                                {% if form.password.errors %}
-                                    <div class="invalid-feedback">{{ form.password.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold small text-secondary">Confirmar Contraseña</label>
-                                <input type="password" name="confirm_password" class="form-control {% if form.confirm_password.errors %}is-invalid{% endif %}" required>
-                                {% if form.confirm_password.errors %}
-                                    <div class="invalid-feedback">{{ form.confirm_password.errors.0 }}</div>
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <div class="d-grid gap-2 mt-4">
-                            <button type="submit" class="btn btn-danger btn-lg">
-                                <i class="bi bi-check-lg me-2"></i>Crear Usuario
-                            </button>
-                            <a href="{% url 'gestion_usuarios' %}" class="btn btn-outline-secondary">Cancelar</a>
-                        </div>
-                    </form>
-                </div>
-            </div>
+        <div class="card-header text-white d-flex justify-content-between align-items-center"
+             style="background-color:#D71920 !important;">
+          <h5 class="mb-0 fw-bold"><i class="bi bi-person-plus me-2"></i>Crear Usuario</h5>
+          <span class="badge bg-light text-danger border border-danger">Administración</span>
         </div>
+
+        <div class="card-body p-4">
+
+          {% if form.errors %}
+            <div class="alert alert-danger d-flex align-items-center">
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>
+              <div>
+                <strong>Corrige los errores:</strong>
+                {{ form.non_field_errors }}
+              </div>
+            </div>
+          {% endif %}
+
+          <form method="post" novalidate>
+            {% csrf_token %}
+
+            <!-- DATOS PERSONALES -->
+            <h6 class="border-bottom pb-2 mb-3" style="color:#D71920 !important;">
+              <i class="bi bi-person-badge me-1"></i> Información Personal
+            </h6>
+
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary">Nombres</label>
+                {{ form.first_name }}
+                {% if form.first_name.errors %}<div class="text-danger small">{{ form.first_name.errors.0 }}</div>{% endif %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary">Apellidos</label>
+                {{ form.last_name }}
+                {% if form.last_name.errors %}<div class="text-danger small">{{ form.last_name.errors.0 }}</div>{% endif %}
+              </div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary">Email</label>
+                {{ form.email }}
+                {% if form.email.errors %}<div class="text-danger small">{{ form.email.errors.0 }}</div>{% endif %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary">RUT</label>
+                {{ form.rut }}
+                {% if form.rut.errors %}<div class="text-danger small">{{ form.rut.errors.0 }}</div>{% endif %}
+              </div>
+            </div>
+
+            <!-- ACCESO -->
+            <h6 class="border-bottom pb-2 mb-3 mt-4" style="color:#D71920 !important;">
+              <i class="bi bi-shield-lock me-1"></i> Configuración de Acceso
+            </h6>
+
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary">Rol de Sistema</label>
+                {{ form.rol }}
+                {% if form.rol.errors %}<div class="text-danger small">{{ form.rol.errors.0 }}</div>{% endif %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary">Cargo</label>
+                {{ form.tipo_solicitante }}
+                {% if form.tipo_solicitante.errors %}<div class="text-danger small">{{ form.tipo_solicitante.errors.0 }}</div>{% endif %}
+              </div>
+            </div>
+
+            <!-- ACADÉMICO -->
+            <div class="p-3 bg-light rounded border mb-3">
+              <h6 class="fw-bold mb-3" style="color:#D71920;">
+                <i class="bi bi-diagram-3 me-1"></i> Asignación Académica
+              </h6>
+
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-bold text-danger" style="color:#D71920 !important;">Carrera (Obligatorio)</label>
+                  {{ form.carrera }}
+                  {% if form.carrera.errors %}<div class="text-danger small">{{ form.carrera.errors.0 }}</div>{% endif %}
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label fw-bold text-danger" style="color:#D71920 !important;">Área (Automática)</label>
+                  {{ form.area }}
+                  <div class="form-text small">
+                    <i class="bi bi-info-circle"></i> Se completa en base a la carrera seleccionada.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CONTRASEÑA -->
+            <h6 class="border-bottom pb-2 mb-3 mt-4" style="color:#D71920 !important;">
+              <i class="bi bi-key me-1"></i> Seguridad
+            </h6>
+
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary">{{ form.password.label }}</label>
+                {{ form.password }}
+                {% if form.password.errors %}
+                  <div class="text-danger small">
+                    {% for err in form.password.errors %}
+                      <div>• {{ err }}</div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+                <div class="form-text small">{{ form.password.help_text }}</div>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary">{{ form.confirm_password.label }}</label>
+                {{ form.confirm_password }}
+                {% if form.confirm_password.errors %}
+                  <div class="text-danger small">{{ form.confirm_password.errors.0 }}</div>
+                {% endif %}
+                <div class="form-text small">Para verificar, introduce la misma contraseña anterior.</div>
+              </div>
+            </div>
+
+            <div class="d-grid gap-2 mt-4">
+              <button type="submit" class="btn btn-danger btn-lg"
+                      style="background-color:#D71920 !important; border-color:#D71920;">
+                <i class="bi bi-save me-2"></i>Crear Usuario
+              </button>
+              <a href="{% url 'gestion_usuarios' %}" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+
+          </form>
+
+        </div>
+      </div>
     </div>
+  </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const rolSelect = document.getElementById('id_rol');
-    const divTipo = document.getElementById('div_tipo_solicitante');
-    const seccionArea = document.getElementById('seccion_area');
+  // Carrera y área (área es disabled, pero la rellenamos visualmente)
+  const carreraSelect = document.getElementById('id_carrera');
+  const areaSelect = document.getElementById('id_area');
 
-    function toggleFields() {
-        if (rolSelect.value === 'ADMIN') {
-            // Si es Admin, ocultamos el cargo (Docente/Coordinador) pero MOSTRAMOS el área
-            if(divTipo) divTipo.style.display = 'none';
-            if(seccionArea) seccionArea.style.display = 'block'; 
-        } else {
-            // Si es Solicitante, mostramos todo (Cargo y Área)
-            if(divTipo) divTipo.style.display = 'block';
-            if(seccionArea) seccionArea.style.display = 'block';
-        }
-    }
+  if (!carreraSelect || !areaSelect) return;
 
-    if (rolSelect) {
-        rolSelect.addEventListener('change', toggleFields);
-        toggleFields(); // Ejecutar al cargar para estado inicial
+  // Creamos un mapa CarreraID -> AreaID leyendo el texto del option:
+  // Como tu Carrera __str__ es: "Nombre (Area)", no sirve para mapear.
+  // Entonces hacemos lo seguro: consultamos dataset si existe.
+  // Si no existe, dejamos el área como está (no rompemos nada).
+  function syncAreaFromCarrera() {
+    const selected = carreraSelect.options[carreraSelect.selectedIndex];
+    const areaId = selected ? selected.getAttribute('data-area') : null;
+
+    if (areaId) {
+      areaSelect.value = areaId;
     }
+  }
+
+  // Si quieres dataset, puedes agregarlo en el render del select con JS del backend,
+  // pero como el widget de Django no trae data-area por defecto, aquí no forzamos.
+  // Este sync solo funcionará si tus <option> ya vienen con data-area.
+  carreraSelect.addEventListener('change', syncAreaFromCarrera);
+  syncAreaFromCarrera();
 });
 </script>
 {% endblock %}

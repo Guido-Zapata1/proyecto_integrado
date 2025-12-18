@@ -1,26 +1,43 @@
-Django
-
+# --- Python / Django ---
+__pycache__/
+*.py[cod]
+*.so
+*.sqlite3
 *.log
 *.pot
 *.pyc
-pycache/
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-media/
 
-Entorno Virtual
-
+# --- Virtualenv ---
 venv/
+.venv/
 env/
+ENV/
+
+# --- Django stuff ---
+staticfiles/
+media/
+*.db
+
+# --- Environment variables ---
 .env
+.env.*
+!.env.example
 
-IDEs
+# --- Migrations (NO ignores migrations, sí ignora caches) ---
+*/migrations/__pycache__/
 
+# --- IDE / OS ---
 .vscode/
 .idea/
-
-OS
-
 .DS_Store
 Thumbs.db
+
+# --- Node / frontend (si aplica) ---
+node_modules/
+dist/
+build/
+
+# --- Coverage / tests ---
+.coverage
+htmlcov/
+.pytest_cache/
