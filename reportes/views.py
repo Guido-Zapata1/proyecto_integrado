@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from io import BytesIO
-from datetime import datetime, date
+from datetime import datetime, date, time as time_cls
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -14,6 +14,7 @@ from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.table import Table, TableStyleInfo
 
 from core.views import admin_required
 from reservas.models import Reserva, RecursoReserva
@@ -35,6 +36,7 @@ OK_STATES = ["APROBADA"]
 
 
 def _duration_hours(h_inicio, h_fin) -> float:
+    """Calcula duración en horas (float) para métricas."""
     if not h_inicio or not h_fin:
         return 0.0
     base = date(2000, 1, 1)
@@ -47,6 +49,7 @@ def _duration_hours(h_inicio, h_fin) -> float:
 
 
 def _year_from_request(request) -> int:
+    """Lee ?year=YYYY y lo valida."""
     try:
         year = int(request.GET.get("year") or "")
     except ValueError:
@@ -56,7 +59,12 @@ def _year_from_request(request) -> int:
     return year
 
 
+# -----------------------------
+# Expresiones BD (Área/Carrera)
+# -----------------------------
+
 def _area_expr_reserva():
+    # area = carrera.area o area legacy o "Sin Área"
     return Coalesce(
         F("solicitante__carrera__area__nombre"),
         F("solicitante__area__nombre"),
@@ -72,7 +80,26 @@ def _area_expr_recurso_reserva():
     )
 
 
+def _carrera_expr_reserva():
+    return Coalesce(
+        F("solicitante__carrera__nombre"),
+        Value("Sin Carrera"),
+    )
+
+
+def _carrera_expr_recurso_reserva():
+    return Coalesce(
+        F("reserva__solicitante__carrera__nombre"),
+        Value("Sin Carrera"),
+    )
+
+
+# -----------------------------
+# Excel helpers
+# -----------------------------
+
 def _auto_fit(ws, min_w: int = 12, max_w: int = 48) -> None:
+    """Ajusta el ancho de columnas según el contenido."""
     for col in range(1, ws.max_column + 1):
         letter = get_column_letter(col)
         max_len = 0
@@ -84,16 +111,42 @@ def _auto_fit(ws, min_w: int = 12, max_w: int = 48) -> None:
         ws.column_dimensions[letter].width = max(min_w, min(max_w, max_len + 2))
 
 
+def _safe_table_name(ws_title: str, header_row: int) -> str:
+    """
+    Nombre de tabla Excel:
+    - Debe empezar con letra
+    - Solo letras/números/underscore
+    - Debe ser único por workbook
+    """
+    base = "".join(ch if ch.isalnum() else "_" for ch in ws_title)
+    base = base.strip("_") or "Sheet"
+    name = f"T_{base}_{header_row}"
+    if not name[0].isalpha():
+        name = "T_" + name
+    return name[:60]
+
+
 def _write_table(ws, title: str, subtitle: str, columns: list[str], rows: list[list]) -> None:
+    """
+    Escribe una hoja con:
+    - Título + subtítulo
+    - Encabezados estilo INACAP
+    - Tabla Excel (con flechas de filtro/ordenamiento)
+    - Freeze panes
+    - Bordes
+    """
     ws["A1"] = title
     ws["A1"].font = Font(bold=True, size=14)
+
     ws["A2"] = subtitle
     ws["A2"].font = Font(color="666666")
+
     ws.append([])
 
     header_row = ws.max_row + 1
     ws.append(columns)
 
+    # Encabezado
     for c in range(1, len(columns) + 1):
         cell = ws.cell(row=header_row, column=c)
         cell.fill = HEADER_FILL
@@ -101,17 +154,43 @@ def _write_table(ws, title: str, subtitle: str, columns: list[str], rows: list[l
         cell.alignment = Alignment(horizontal="center", vertical="center")
         cell.border = BORDER
 
+    # Datos
     for r in rows:
         ws.append(r)
 
-    for row in range(header_row + 1, ws.max_row + 1):
+    # Estilo celdas
+    for row_i in range(header_row + 1, ws.max_row + 1):
         for c in range(1, len(columns) + 1):
-            cell = ws.cell(row=row, column=c)
+            cell = ws.cell(row=row_i, column=c)
             cell.border = BORDER
             cell.alignment = Alignment(vertical="top", wrap_text=True)
 
+            # Tipos: fechas/horas reales para ordenamiento correcto
+            val = cell.value
+            if isinstance(val, datetime):
+                cell.number_format = "yyyy-mm-dd hh:mm"
+            elif isinstance(val, date) and not isinstance(val, datetime):
+                cell.number_format = "yyyy-mm-dd"
+            elif isinstance(val, time_cls):
+                cell.number_format = "hh:mm"
+
+    # Congelar encabezado
     ws.freeze_panes = ws[f"A{header_row + 1}"]
-    ws.auto_filter.ref = f"A{header_row}:{get_column_letter(len(columns))}{ws.max_row}"
+
+    # Crear Tabla Excel con filtros (flechas) y estilo
+    last_col = get_column_letter(len(columns))
+    table_ref = f"A{header_row}:{last_col}{ws.max_row}"
+    table = Table(displayName=_safe_table_name(ws.title, header_row), ref=table_ref)
+    style = TableStyleInfo(
+        name="TableStyleMedium9",
+        showFirstColumn=False,
+        showLastColumn=False,
+        showRowStripes=True,
+        showColumnStripes=False,
+    )
+    table.tableStyleInfo = style
+    ws.add_table(table)
+
     _auto_fit(ws)
 
 
@@ -145,6 +224,12 @@ def _area_name_from_user(user) -> str:
     return "Sin Área"
 
 
+def _carrera_name_from_user(user) -> str:
+    if getattr(user, "carrera", None):
+        return user.carrera.nombre
+    return "Sin Carrera"
+
+
 # ==============================================================================
 # Home Reportes
 # ==============================================================================
@@ -170,7 +255,7 @@ def u1_mis_reservas_excel(request):
 
     reservas = (
         Reserva.objects.filter(solicitante=request.user, fecha__year=year)
-        .select_related("espacio")
+        .select_related("espacio", "solicitante", "solicitante__carrera", "solicitante__carrera__area", "solicitante__area")
         .prefetch_related("recursos_asociados__recurso")
         .order_by("-fecha", "-hora_inicio")
     )
@@ -184,16 +269,22 @@ def u1_mis_reservas_excel(request):
     for r in reservas:
         dur = _duration_hours(r.hora_inicio, r.hora_fin)
         rec_total = _get_total_recursos_reserva(r)
+
         total_horas += dur
         total_rec += rec_total
         estado_counts[r.estado] = estado_counts.get(r.estado, 0) + 1
 
+        area = _area_name_from_user(r.solicitante)
+        carrera = _carrera_name_from_user(r.solicitante)
+
         detalle_rows.append([
             r.id,
-            r.fecha.strftime("%Y-%m-%d"),
-            str(r.hora_inicio),
-            str(r.hora_fin),
+            r.fecha,                 # date real
+            r.hora_inicio,           # time real
+            r.hora_fin,              # time real
             dur,
+            area,
+            carrera,
             r.espacio.nombre if r.espacio_id else "",
             r.estado,
             rec_total,
@@ -205,6 +296,8 @@ def u1_mis_reservas_excel(request):
         ["Total reservas", total],
         ["Total horas", round(total_horas, 2)],
         ["Total recursos solicitados", int(total_rec)],
+        ["Área", _area_name_from_user(request.user)],
+        ["Carrera", _carrera_name_from_user(request.user)],
     ]
     for k, _label in Reserva.ESTADOS:
         resumen_rows.append([f"Reservas {k}", estado_counts.get(k, 0)])
@@ -225,7 +318,11 @@ def u1_mis_reservas_excel(request):
         ws2,
         title="U1) Mis Reservas (Detalle pivot)",
         subtitle="Tabla plana para pivots",
-        columns=["ID", "Fecha", "Hora inicio", "Hora fin", "Duración(h)", "Espacio", "Estado", "Total recursos", "Detalle recursos", "Motivo"],
+        columns=[
+            "ID", "Fecha", "Hora inicio", "Hora fin", "Duración(h)",
+            "Área", "Carrera", "Espacio", "Estado",
+            "Total recursos", "Detalle recursos", "Motivo"
+        ],
         rows=detalle_rows,
     )
 
@@ -260,16 +357,21 @@ def u2_mis_recursos_excel(request):
             reserva__fecha__year=year,
             reserva__estado__in=OK_STATES,
         )
-        .select_related("recurso", "reserva", "reserva__espacio")
+        .select_related("recurso", "reserva", "reserva__espacio", "reserva__solicitante", "reserva__solicitante__carrera", "reserva__solicitante__carrera__area", "reserva__solicitante__area")
         .order_by("-reserva__fecha", "-reserva__hora_inicio")
     )
 
     detalle_rows = []
     for rr in detalle_qs:
+        area = _area_name_from_user(rr.reserva.solicitante)
+        carrera = _carrera_name_from_user(rr.reserva.solicitante)
+
         detalle_rows.append([
             rr.reserva.id,
-            rr.reserva.fecha.strftime("%Y-%m-%d"),
+            rr.reserva.fecha,
             rr.reserva.espacio.nombre if rr.reserva.espacio_id else "",
+            area,
+            carrera,
             rr.recurso.nombre,
             int(rr.cantidad or 0),
             rr.reserva.estado,
@@ -291,7 +393,7 @@ def u2_mis_recursos_excel(request):
         ws2,
         title="U2) Mis Recursos (Detalle pivot)",
         subtitle="Tabla plana para pivots",
-        columns=["ID Reserva", "Fecha", "Espacio", "Recurso", "Cantidad", "Estado"],
+        columns=["ID Reserva", "Fecha", "Espacio", "Área", "Carrera", "Recurso", "Cantidad", "Estado"],
         rows=detalle_rows,
     )
 
@@ -308,7 +410,7 @@ def u3_mis_espacios_excel(request):
             fecha__year=year,
             estado__in=OK_STATES,
         )
-        .select_related("espacio")
+        .select_related("espacio", "solicitante", "solicitante__carrera", "solicitante__carrera__area", "solicitante__area")
         .prefetch_related("recursos_asociados")
         .order_by("-fecha", "-hora_inicio")
     )
@@ -326,9 +428,9 @@ def u3_mis_espacios_excel(request):
 
         detalle_rows.append([
             r.id,
-            r.fecha.strftime("%Y-%m-%d"),
-            str(r.hora_inicio),
-            str(r.hora_fin),
+            r.fecha,
+            r.hora_inicio,
+            r.hora_fin,
             dur,
             espacio,
             _get_total_recursos_reserva(r),
@@ -396,6 +498,7 @@ def r1_recursos_global_excel(request):
             reserva__estado__in=OK_STATES,
         )
         .annotate(area=_area_expr_recurso_reserva())
+        .annotate(carrera=_carrera_expr_recurso_reserva())
         .select_related("recurso", "reserva", "reserva__espacio", "reserva__solicitante")
         .order_by("-reserva__fecha", "-reserva__hora_inicio")
     )
@@ -404,12 +507,13 @@ def r1_recursos_global_excel(request):
     for rr in detalle_qs:
         detalle_rows.append([
             rr.reserva.id,
-            rr.reserva.fecha.strftime("%Y-%m-%d"),
-            str(rr.reserva.hora_inicio),
-            str(rr.reserva.hora_fin),
+            rr.reserva.fecha,
+            rr.reserva.hora_inicio,
+            rr.reserva.hora_fin,
             rr.reserva.espacio.nombre if rr.reserva.espacio_id else "",
             rr.reserva.solicitante.get_full_name() or rr.reserva.solicitante.email,
             rr.area,
+            rr.carrera,
             rr.recurso.nombre,
             int(rr.cantidad or 0),
             rr.reserva.estado,
@@ -431,7 +535,7 @@ def r1_recursos_global_excel(request):
         ws2,
         title="R1) Recursos (Detalle pivot)",
         subtitle="Tabla plana (ideal para pivots)",
-        columns=["ID Reserva", "Fecha", "Hora inicio", "Hora fin", "Espacio", "Solicitante", "Área", "Recurso", "Cantidad", "Estado"],
+        columns=["ID Reserva", "Fecha", "Hora inicio", "Hora fin", "Espacio", "Solicitante", "Área", "Carrera", "Recurso", "Cantidad", "Estado"],
         rows=detalle_rows,
     )
 
@@ -448,9 +552,10 @@ def r2_recursos_por_area_excel(request):
             reserva__estado__in=OK_STATES,
         )
         .annotate(area=_area_expr_recurso_reserva())
-        .values("area", "recurso__nombre")
+        .annotate(carrera=_carrera_expr_recurso_reserva())
+        .values("area", "carrera", "recurso__nombre")
         .annotate(cantidad_total=Sum("cantidad"), reservas=Count("reserva", distinct=True))
-        .order_by("area", "-cantidad_total", "recurso__nombre")
+        .order_by("area", "carrera", "-cantidad_total", "recurso__nombre")
     )
 
     tot_area = {}
@@ -462,7 +567,7 @@ def r2_recursos_por_area_excel(request):
         area = x["area"]
         cant = int(x["cantidad_total"] or 0)
         pct = round((cant / tot_area[area]) * 100, 2) if tot_area.get(area) else 0
-        resumen_rows.append([area, x["recurso__nombre"], cant, int(x["reservas"] or 0), pct])
+        resumen_rows.append([area, x["carrera"], x["recurso__nombre"], cant, int(x["reservas"] or 0), pct])
 
     detalle_qs = (
         RecursoReserva.objects.filter(
@@ -470,16 +575,18 @@ def r2_recursos_por_area_excel(request):
             reserva__estado__in=OK_STATES,
         )
         .annotate(area=_area_expr_recurso_reserva())
+        .annotate(carrera=_carrera_expr_recurso_reserva())
         .select_related("recurso", "reserva", "reserva__espacio", "reserva__solicitante")
-        .order_by("area", "-reserva__fecha", "-reserva__hora_inicio")
+        .order_by("area", "carrera", "-reserva__fecha", "-reserva__hora_inicio")
     )
 
     detalle_rows = []
     for rr in detalle_qs:
         detalle_rows.append([
             rr.area,
+            rr.carrera,
             rr.reserva.id,
-            rr.reserva.fecha.strftime("%Y-%m-%d"),
+            rr.reserva.fecha,
             rr.reserva.espacio.nombre if rr.reserva.espacio_id else "",
             rr.reserva.solicitante.get_full_name() or rr.reserva.solicitante.email,
             rr.recurso.nombre,
@@ -494,7 +601,7 @@ def r2_recursos_por_area_excel(request):
         ws1,
         title="R2) Recursos más solicitados por Área",
         subtitle=f"Año {year} | Estados: {', '.join(OK_STATES)}",
-        columns=["Área", "Recurso", "Cantidad total", "N° reservas", "% dentro del Área"],
+        columns=["Área", "Carrera", "Recurso", "Cantidad total", "N° reservas", "% dentro del Área"],
         rows=resumen_rows,
     )
 
@@ -503,7 +610,7 @@ def r2_recursos_por_area_excel(request):
         ws2,
         title="R2) Recursos por Área (Detalle pivot)",
         subtitle="Tabla plana (ideal para pivots)",
-        columns=["Área", "ID Reserva", "Fecha", "Espacio", "Solicitante", "Recurso", "Cantidad", "Estado"],
+        columns=["Área", "Carrera", "ID Reserva", "Fecha", "Espacio", "Solicitante", "Recurso", "Cantidad", "Estado"],
         rows=detalle_rows,
     )
 
@@ -516,7 +623,7 @@ def r3_espacios_global_excel(request):
 
     reservas = (
         Reserva.objects.filter(fecha__year=year, estado__in=OK_STATES)
-        .select_related("espacio", "solicitante", "solicitante__area", "solicitante__carrera__area")
+        .select_related("espacio", "solicitante", "solicitante__area", "solicitante__carrera", "solicitante__carrera__area")
         .prefetch_related("recursos_asociados")
         .order_by("-fecha", "-hora_inicio")
     )
@@ -533,16 +640,18 @@ def r3_espacios_global_excel(request):
         space["horas"] += dur
 
         area = _area_name_from_user(r.solicitante)
+        carrera = _carrera_name_from_user(r.solicitante)
 
         detalle_rows.append([
             r.id,
-            r.fecha.strftime("%Y-%m-%d"),
-            str(r.hora_inicio),
-            str(r.hora_fin),
+            r.fecha,
+            r.hora_inicio,
+            r.hora_fin,
             dur,
             espacio,
             r.solicitante.get_full_name() or r.solicitante.email,
             area,
+            carrera,
             r.estado,
             _get_total_recursos_reserva(r),
         ])
@@ -571,7 +680,7 @@ def r3_espacios_global_excel(request):
         ws2,
         title="R3) Reservas por espacio (Detalle pivot)",
         subtitle="Tabla plana (ideal para pivots)",
-        columns=["ID", "Fecha", "Hora inicio", "Hora fin", "Duración(h)", "Espacio", "Solicitante", "Área", "Estado", "Total recursos"],
+        columns=["ID", "Fecha", "Hora inicio", "Hora fin", "Duración(h)", "Espacio", "Solicitante", "Área", "Carrera", "Estado", "Total recursos"],
         rows=detalle_rows,
     )
 
@@ -584,7 +693,7 @@ def r4_espacios_por_area_excel(request):
 
     reservas = (
         Reserva.objects.filter(fecha__year=year, estado__in=OK_STATES)
-        .select_related("espacio", "solicitante", "solicitante__area", "solicitante__carrera__area")
+        .select_related("espacio", "solicitante", "solicitante__area", "solicitante__carrera", "solicitante__carrera__area")
         .prefetch_related("recursos_asociados")
         .order_by("-fecha", "-hora_inicio")
     )
@@ -597,6 +706,7 @@ def r4_espacios_por_area_excel(request):
         espacio = r.espacio.nombre if r.espacio_id else "Sin espacio"
         dur = _duration_hours(r.hora_inicio, r.hora_fin)
         area = _area_name_from_user(r.solicitante)
+        carrera = _carrera_name_from_user(r.solicitante)
 
         key = (area, espacio)
         d = area_space.setdefault(key, {"reservas": 0, "horas": 0.0})
@@ -606,11 +716,12 @@ def r4_espacios_por_area_excel(request):
 
         detalle_rows.append([
             area,
+            carrera,
             r.id,
-            r.fecha.strftime("%Y-%m-%d"),
+            r.fecha,
             espacio,
-            str(r.hora_inicio),
-            str(r.hora_fin),
+            r.hora_inicio,
+            r.hora_fin,
             dur,
             r.solicitante.get_full_name() or r.solicitante.email,
             r.estado,
@@ -641,7 +752,7 @@ def r4_espacios_por_area_excel(request):
         ws2,
         title="R4) Área/Espacio (Detalle pivot)",
         subtitle="Tabla plana (ideal para pivots)",
-        columns=["Área", "ID", "Fecha", "Espacio", "Hora inicio", "Hora fin", "Duración(h)", "Solicitante", "Estado", "Total recursos"],
+        columns=["Área", "Carrera", "ID", "Fecha", "Espacio", "Hora inicio", "Hora fin", "Duración(h)", "Solicitante", "Estado", "Total recursos"],
         rows=detalle_rows,
     )
 
@@ -654,7 +765,7 @@ def r5_uso_por_area_excel(request):
 
     reservas = (
         Reserva.objects.filter(fecha__year=year, estado__in=OK_STATES)
-        .select_related("espacio", "solicitante", "solicitante__area", "solicitante__carrera__area")
+        .select_related("espacio", "solicitante", "solicitante__area", "solicitante__carrera", "solicitante__carrera__area")
         .prefetch_related("recursos_asociados")
     )
 
@@ -673,6 +784,7 @@ def r5_uso_por_area_excel(request):
 
     for r in reservas:
         area = _area_name_from_user(r.solicitante)
+        carrera = _carrera_name_from_user(r.solicitante)
         dur = _duration_hours(r.hora_inicio, r.hora_fin)
 
         d = area_stats.setdefault(area, {"reservas": 0, "horas": 0.0})
@@ -681,11 +793,12 @@ def r5_uso_por_area_excel(request):
 
         detalle_rows.append([
             r.id,
-            r.fecha.strftime("%Y-%m-%d"),
+            r.fecha,
             area,
+            carrera,
             r.espacio.nombre if r.espacio_id else "",
-            str(r.hora_inicio),
-            str(r.hora_fin),
+            r.hora_inicio,
+            r.hora_fin,
             dur,
             r.solicitante.get_full_name() or r.solicitante.email,
             r.estado,
@@ -717,7 +830,7 @@ def r5_uso_por_area_excel(request):
         ws2,
         title="R5) Reservas por Área (Detalle pivot)",
         subtitle="Tabla plana (ideal para pivots)",
-        columns=["ID", "Fecha", "Área", "Espacio", "Hora inicio", "Hora fin", "Duración(h)", "Solicitante", "Estado", "Total recursos"],
+        columns=["ID", "Fecha", "Área", "Carrera", "Espacio", "Hora inicio", "Hora fin", "Duración(h)", "Solicitante", "Estado", "Total recursos"],
         rows=detalle_rows,
     )
 
@@ -730,7 +843,7 @@ def r6_tendencia_mensual_por_area_excel(request):
 
     reservas = (
         Reserva.objects.filter(fecha__year=year, estado__in=OK_STATES)
-        .select_related("solicitante", "solicitante__area", "solicitante__carrera__area", "espacio")
+        .select_related("solicitante", "solicitante__area", "solicitante__carrera", "solicitante__carrera__area", "espacio")
         .prefetch_related("recursos_asociados")
     )
 
@@ -739,6 +852,7 @@ def r6_tendencia_mensual_por_area_excel(request):
 
     for r in reservas:
         area = _area_name_from_user(r.solicitante)
+        carrera = _carrera_name_from_user(r.solicitante)
         m = r.fecha.month
         dur = _duration_hours(r.hora_inicio, r.hora_fin)
         total_rec = _get_total_recursos_reserva(r)
@@ -747,12 +861,13 @@ def r6_tendencia_mensual_por_area_excel(request):
 
         detalle_rows.append([
             area,
+            carrera,
             MESES[m - 1],
             r.id,
-            r.fecha.strftime("%Y-%m-%d"),
+            r.fecha,
             r.espacio.nombre if r.espacio_id else "",
-            str(r.hora_inicio),
-            str(r.hora_fin),
+            r.hora_inicio,
+            r.hora_fin,
             dur,
             total_rec,
             r.solicitante.get_full_name() or r.solicitante.email,
@@ -779,7 +894,7 @@ def r6_tendencia_mensual_por_area_excel(request):
         ws2,
         title="R6) Área/Mes (Detalle pivot)",
         subtitle="Tabla plana (ideal para pivots)",
-        columns=["Área", "Mes", "ID", "Fecha", "Espacio", "Hora inicio", "Hora fin", "Duración(h)", "Total recursos", "Solicitante"],
+        columns=["Área", "Carrera", "Mes", "ID", "Fecha", "Espacio", "Hora inicio", "Hora fin", "Duración(h)", "Total recursos", "Solicitante"],
         rows=detalle_rows,
     )
 
@@ -815,21 +930,23 @@ def r7_estados_por_area_excel(request):
 
     detalle_qs = (
         Reserva.objects.filter(fecha__year=year)
-        .select_related("solicitante", "solicitante__area", "solicitante__carrera__area", "espacio")
+        .select_related("solicitante", "solicitante__area", "solicitante__carrera", "solicitante__carrera__area", "espacio")
         .order_by("-fecha", "-hora_inicio")
     )
 
     detalle_rows = []
     for r in detalle_qs:
         area = _area_name_from_user(r.solicitante)
+        carrera = _carrera_name_from_user(r.solicitante)
         detalle_rows.append([
             r.id,
-            r.fecha.strftime("%Y-%m-%d"),
-            str(r.hora_inicio),
-            str(r.hora_fin),
+            r.fecha,
+            r.hora_inicio,
+            r.hora_fin,
             r.espacio.nombre if r.espacio_id else "",
             r.solicitante.get_full_name() or r.solicitante.email,
             area,
+            carrera,
             r.estado,
         ])
 
@@ -849,7 +966,7 @@ def r7_estados_por_area_excel(request):
         ws2,
         title="R7) Reservas por Área/Estado (Detalle pivot)",
         subtitle="Tabla plana (ideal para pivots)",
-        columns=["ID", "Fecha", "Hora inicio", "Hora fin", "Espacio", "Solicitante", "Área", "Estado"],
+        columns=["ID", "Fecha", "Hora inicio", "Hora fin", "Espacio", "Solicitante", "Área", "Carrera", "Estado"],
         rows=detalle_rows,
     )
 
@@ -862,7 +979,7 @@ def r8_auditoria_detallada_excel(request):
 
     reservas = (
         Reserva.objects.filter(fecha__year=year)
-        .select_related("espacio", "solicitante", "solicitante__area", "solicitante__carrera__area")
+        .select_related("espacio", "solicitante", "solicitante__area", "solicitante__carrera", "solicitante__carrera__area")
         .prefetch_related("recursos_asociados__recurso")
         .order_by("-fecha", "-hora_inicio")
     )
@@ -876,6 +993,7 @@ def r8_auditoria_detallada_excel(request):
     detalle_rows = []
     for r in reservas:
         area = _area_name_from_user(r.solicitante)
+        carrera = _carrera_name_from_user(r.solicitante)
         dur = _duration_hours(r.hora_inicio, r.hora_fin)
         rec_total = _get_total_recursos_reserva(r)
 
@@ -886,18 +1004,19 @@ def r8_auditoria_detallada_excel(request):
 
         detalle_rows.append([
             r.id,
-            r.fecha.strftime("%Y-%m-%d"),
-            str(r.hora_inicio),
-            str(r.hora_fin),
+            r.fecha,
+            r.hora_inicio,
+            r.hora_fin,
             dur,
             r.estado,
             r.espacio.nombre if r.espacio_id else "",
             r.solicitante.get_full_name() or r.solicitante.email,
             area,
+            carrera,
             rec_total,
             _recursos_texto(r),
             r.motivo or "",
-            r.fecha_solicitud.strftime("%Y-%m-%d %H:%M") if r.fecha_solicitud else "",
+            r.fecha_solicitud if r.fecha_solicitud else None,
         ])
 
     rr_area = (
@@ -949,6 +1068,7 @@ def r8_auditoria_detallada_excel(request):
             "Espacio",
             "Solicitante",
             "Área",
+            "Carrera",
             "Total recursos",
             "Detalle recursos",
             "Motivo/Actividad",

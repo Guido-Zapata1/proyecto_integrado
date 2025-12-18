@@ -67,11 +67,11 @@
 
       <!-- ✅ PACK ADMIN -->
       {% if user.rol == 'ADMIN' or user.is_superuser %}
-      <h6 class="fw-bold mb-3">Pack Administración (8 reportes)</h6>
+      <h6 class="fw-bold mb-3">Pack Administración (7 reportes)</h6>
 
       <div class="alert alert-light border mb-4">
         <i class="bi bi-info-circle"></i>
-        Reportes 1–6 consideran solo estado <b>APROBADA</b>. Reportes 7–8 incluyen <b>todos los estados</b>.
+        Reportes 1–6 consideran solo estado <b>APROBADA</b>. Reporte 7 incluye <b>todos los estados</b>.
       </div>
 
       <div class="row g-3">
@@ -147,24 +147,12 @@
           </div>
         </div>
 
-        <div class="col-md-6 col-lg-6">
+        <div class="col-md-6 col-lg-12">
           <div class="card shadow-sm h-100" style="border-radius:14px;">
             <div class="card-body">
               <h6 class="fw-bold mb-2"><i class="bi bi-check2-circle text-danger me-2"></i>R7 Estados por Área</h6>
               <p class="text-muted small mb-3">Todos los estados + % aprobación.</p>
               <a class="btn btn-outline-danger w-100" href="{% url 'reportes:r7_estados_por_area_excel' %}?year={{ year }}">
-                <i class="bi bi-download"></i> Descargar Excel
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-6 col-lg-6">
-          <div class="card shadow-sm h-100" style="border-radius:14px;">
-            <div class="card-body">
-              <h6 class="fw-bold mb-2"><i class="bi bi-shield-check text-danger me-2"></i>R8 Auditoría detallada</h6>
-              <p class="text-muted small mb-3">Resumen por área + detalle pivot completo.</p>
-              <a class="btn btn-outline-danger w-100" href="{% url 'reportes:r8_auditoria_detallada_excel' %}?year={{ year }}">
                 <i class="bi bi-download"></i> Descargar Excel
               </a>
             </div>
